@@ -1,0 +1,11 @@
+--- arch/x86/entry/syscalls/syscall_64.tbl.bac	2024-11-22 15:00:31.072913975 +0530
++++ arch/x86/entry/syscalls/syscall_64.tbl	2024-11-22 15:00:43.276960319 +0530
+@@ -345,6 +345,9 @@
+ 333	common	io_pgetevents		sys_io_pgetevents
+ 334	common	rseq			sys_rseq
++335 64      sandbox_dummycall   sys_sandbox_dummycall
++336 64      sandbox_init   sys_sandbox_init
++337 64      sandbox_cleanup   sys_sandbox_cleanup
+ # don't use numbers 387 through 423, add new calls after the last
+ # 'common' entry
+ 424	common	pidfd_send_signal	sys_pidfd_send_signal

@@ -1,0 +1,55 @@
+From ff7d3a91464e942c16d8b05ca6300ab05cc10f75 Mon Sep 17 00:00:00 2001
+From: Vaisakh P S <vaisakh.sudheesh@gmail.com>
+Date: Fri, 22 Nov 2024 11:08:45 +0530
+Subject: [PATCH] Necessary changes to include module
+
+Signed-off-by: Vaisakh P S <vaisakh.sudheesh@gmail.com>
+---
+ arch/x86/entry/syscalls/syscall_64.tbl | 4 ++++
+ include/linux/syscalls.h               | 5 +++++
+ security/Kconfig                       | 6 ++++++
+ security/Makefile                      | 3 +++
+ 4 files changed, 18 insertions(+)
+
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 77eb9b0e768..d1c1782ae9a 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1294,4 +1294,9 @@ int __sys_getsockopt(int fd, int level, int optname, char __user *optval,
+ 		int __user *optlen);
+ int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+ 		int optlen);
++
++asmlinkage long sys_sandbox_init(unsigned char * buffer, unsigned long);
++asmlinkage long sys_sandbox_dummycall(unsigned long);
++asmlinkage long sys_sandbox_cleanup(void);
++
+ #endif
+diff --git a/security/Kconfig b/security/Kconfig
+index 52c9af08ad3..dada436d825 100644
+--- a/security/Kconfig
++++ b/security/Kconfig
+@@ -251,3 +251,9 @@ source "security/Kconfig.hardening"
+ 
+ endmenu
+ 
++
++config E0_256_SANDBOX_PROJECT
++	bool "Enable in-kernel sandbox feature for E0256 project"
++	default y
++	help
++	 In kernel per-process library call sandbox feature support.
+diff --git a/security/Makefile b/security/Makefile
+index 59f23849066..3512a8c2b44 100644
+--- a/security/Makefile
++++ b/security/Makefile
+@@ -28,3 +28,6 @@ obj-$(CONFIG_SECURITY_LANDLOCK)		+= landlock/
+ 
+ # Object integrity file lists
+ obj-$(CONFIG_INTEGRITY)			+= integrity/
++
++# E0256 Project module inclusion
++obj-y += e0256-sandboxing/
+-- 
+2.43.0
+
