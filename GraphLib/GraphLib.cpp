@@ -166,6 +166,24 @@ std::vector<std::string>  LibcCallgraph::get_control_edge_neighbors(const std::s
     return neighbors;
 }
 
+
+std::vector<std::string>  LibcCallgraph::get_user_edge_neighbors(const std::string& vertex) const {
+    std::vector<std::string> neighbors;
+    if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
+        //fmt::print("[get_control_edge_neighbors] Vertex {} not found in the graph\n", vertex);
+        return neighbors;
+    }
+
+    for (const auto& neighbor : graph.get_neighbors(vertex_id_map.at(vertex))) {
+        std::string neighbor2 =  graph.get_edge(vertex_id_map.at(vertex), neighbor);
+        if (neighbor2.find("user:") == 0) {
+            neighbors.push_back(graph.get_vertex(neighbor));
+        }
+    }
+    return neighbors;
+}
+
+
 std::vector<std::string>  LibcCallgraph::get_vertices() const{
     std::vector<std::string> vertices;
     for (const auto& vertex : graph.get_vertices()) {

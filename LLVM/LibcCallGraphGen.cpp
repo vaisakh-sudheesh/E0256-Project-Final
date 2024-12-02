@@ -175,6 +175,9 @@ struct funcBBGraphMeta {
     LibcCallgraph libcCallGraph;    // Graph with libc calls and program abstract state 
 };
 std::map<std::string, funcBBGraphMeta> funcBBToMetaMap;
+
+std::string finalGraphEntryNode;
+std::string finalGraphExitNode;
 LibcCallgraph finalGraph;       // Final graph with libc calls and program abstract state
 
 /**
@@ -305,29 +308,86 @@ void ConvertBBGraphToLibcCallGraph(){
 
 void CombineLibcgGraph (){
     finalGraph = funcBBToMetaMap["main"].libcCallGraph;
-    DEBUG_PRINT(BOLD_YELLOW << "Main function: " << BOLD_WHITE << "main" << RESET << "\n");
+    finalGraphEntryNode = funcBBToMetaMap["main"].entryNode;
+    finalGraphExitNode = funcBBToMetaMap["main"].exitNode;
+
+    // DEBUG_PRINT(BOLD_YELLOW << "Main function: " << BOLD_WHITE << "main" << RESET << "\n");
     for(auto &entry : finalGraph.get_vertices()){
-        DEBUG_PRINT(BOLD_YELLOW << "Vertex: " << BOLD_WHITE << entry << RESET << "\n");
+        // DEBUG_PRINT(BOLD_YELLOW << "Vertex: " << BOLD_WHITE << entry << RESET << "\n");
         for(auto &edge : finalGraph.get_outgoing_edges(entry)){
-            DEBUG_PRINT(BOLD_YELLOW << "    Edge: " << BOLD_WHITE << edge << RESET << "\n");
+            // DEBUG_PRINT(BOLD_YELLOW << "    Edge: " << BOLD_WHITE << edge << RESET << "\n");
+            
             if (edge.find("user:") == 0) {
                 std::string functionCall = edge.substr(5);
-                DEBUG_PRINT(BOLD_YELLOW << "        Function call: " << BOLD_WHITE << functionCall << RESET << "\n");
+                // DEBUG_PRINT(BOLD_YELLOW << "        Function call: " << BOLD_WHITE << functionCall << RESET << "\n");
                 LibcCallgraph funcGraph = funcBBToMetaMap[functionCall].libcCallGraph;
-                std::string entry = funcBBToMetaMap[functionCall].entryNode;
-                std::string exit = funcBBToMetaMap[functionCall].exitNode;
+                std::string func_entry = funcBBToMetaMap[functionCall].entryNode;
+                std::string func_exit = funcBBToMetaMap[functionCall].exitNode;
 
-                DEBUG_PRINT(BOLD_YELLOW << "        Entry: " << BOLD_WHITE << entry << RESET << "\n");
-                DEBUG_PRINT(BOLD_YELLOW << "        Exit: " << BOLD_WHITE << exit << RESET << "\n");
-                finalGraph.insert_graph(funcGraph, entry, exit);   
+                // DEBUG_PRINT(BOLD_YELLOW << "        Entry: " << BOLD_WHITE << func_entry << RESET << "\n");
+                // DEBUG_PRINT(BOLD_YELLOW << "        Exit: " << BOLD_WHITE << func_exit << RESET << "\n");
+                finalGraph.insert_graph(funcGraph, func_entry, func_exit);   
+                finalGraph.add_edge(entry, func_entry, "control");
+                finalGraph.add_edge(func_exit, finalGraph.get_neighbors(entry).front(), "control");
             }
         }
     }
+
+    bool noMergeFound = false;
+    int count = 0;
+
+    while (!noMergeFound) {
+        // DEBUG_PRINT(BOLD_YELLOW << "__________________________________________________\n");
+        // DEBUG_PRINT(BOLD_YELLOW << "Iteration: " << BOLD_WHITE << count++ << RESET << "\n");
+        noMergeFound = true;
+        for (const auto &vertex : finalGraph.get_vertices()) {
+            const std::vector<std::string> neighbors = finalGraph.get_control_edge_neighbors(vertex);
+            // DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << vertex << " (" << neighbors.size() << ")" << RESET);
+            // for (const auto &neighbor : neighbors) {
+            //     DEBUG_PRINT(BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET);
+            // }
+            // DEBUG_PRINT("\n");
+
+            if (neighbors.size() >= 1) {
+                for (const auto &neighbor : neighbors) {
+
+                    // DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
+                    finalGraph.combine_vertex(vertex, neighbor);
+                    if (finalGraphExitNode == neighbor) {
+                        finalGraphExitNode = vertex;
+                    }
+                }
+                noMergeFound = false;
+            }
+
+            const std::vector<std::string> neighbors_user = finalGraph.get_user_edge_neighbors(vertex);
+            // DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << vertex << " (" << neighbors.size() << ")" << RESET);
+            // for (const auto &neighbor : neighbors) {
+            //     DEBUG_PRINT(BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET);
+            // }
+            // DEBUG_PRINT("\n");
+
+            if (neighbors_user.size() >= 1) {
+                for (const auto &neighbor : neighbors_user) {
+
+                    // DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
+                    finalGraph.combine_vertex(vertex, neighbor);
+                    if (finalGraphExitNode == neighbor) {
+                        finalGraphExitNode = vertex;
+                    }
+                }
+                noMergeFound = false;
+            }
+
+        }
+    }
+
+
     std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + "final.dot";
     finalGraph.dump_todot(outputFilename);
     DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
-    DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << finalGraph.get_vertices().front() << RESET << "\n");
-    DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraph.get_vertices().back() << RESET << "\n");
+    DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << finalGraphEntryNode << RESET << "\n");
+    DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraphExitNode << RESET << "\n");
 }
 
 
