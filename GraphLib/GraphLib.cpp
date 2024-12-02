@@ -112,3 +112,30 @@ void LibcCallgraph::dump_todot(const std::string& filename) {
         
     graaf::io::to_dot(graph, path, vertex_writer, edge_writer);
 }
+
+
+std::vector<std::string> LibcCallgraph::get_outgoing_edges (const std::string& vertex) {
+    std::vector<std::string> outgoing_edges;
+    if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
+        fmt::print("Vertex {} not found in the graph\n", vertex);
+        return outgoing_edges;
+    }
+
+    for (const auto& edge : graph.get_neighbors(vertex_id_map[vertex])) {
+        outgoing_edges.push_back(graph.get_edge(vertex_id_map[vertex], edge));
+    }
+    return outgoing_edges;
+}
+
+std::vector<std::string> LibcCallgraph::get_neighbors(const std::string& vertex) {
+    std::vector<std::string> neighbors;
+    if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
+        fmt::print("Vertex {} not found in the graph\n", vertex);
+        return neighbors;
+    }
+
+    for (const auto& neighbor : graph.get_neighbors(vertex_id_map[vertex])) {
+        neighbors.push_back(graph.get_vertex(neighbor));
+    }
+    return neighbors;
+}

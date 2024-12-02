@@ -190,15 +190,19 @@ void ExpandBBGraph(){
 
         // Expand the edges
         int counter=1;
-        std::string tempBBName, prevVertex, finalVertex;
+        bool hadLibcCalls = false;
+        std::string tempBBName, prevVertex, finalVertex, firstVertex;
+        std::vector<std::string> neighbors;
         for (const auto &bbEntry : funcMeta.bbToLibcMap) {
             const auto &bbName = bbEntry.first;
-            if (counter > 1) {
-                bbExpandedGraph.remove_edge(tempBBName, bbEntry.first);
-                // DEBUG_PRINT(BOLD_YELLOW << "Removing edge: " << BOLD_WHITE << tempBBName << BOLD_YELLOW << " -> " << BOLD_WHITE << bbEntry.first << RESET << "\n");
-                bbExpandedGraph.add_edge(prevVertex, bbEntry.first, "control");
-                // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << bbEntry.first << RESET << "\n");
+            
+            DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << bbEntry.first<< RESET << "\n");
+            firstVertex = bbEntry.first;
+            neighbors = bbExpandedGraph.get_neighbors(bbEntry.first);
+            for (const auto &vertex : neighbors) {
+                DEBUG_PRINT(BOLD_YELLOW << "\tVertex outgoing edge: " << BOLD_WHITE << firstVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertex << RESET << "\n");
             }
+            
             counter = 1;
             
             prevVertex =  tempBBName  = bbName;
@@ -208,17 +212,28 @@ void ExpandBBGraph(){
                 std::string vertexName = bbName + ((libCall.find("user:") == 0) ? "-user_" : "-libc_") + std::to_string(counter++);
                 bbExpandedGraph.add_vertex(vertexName);
                 bbExpandedGraph.add_edge(prevVertex, vertexName, libCall);
-                // DEBUG_PRINT(BOLD_YELLOW << "##Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertexName << BOLD_YELLOW << " (" << BOLD_WHITE << libCall << BOLD_YELLOW << ")" << RESET << "\n");
+                DEBUG_PRINT(BOLD_YELLOW << "$$ Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertexName << BOLD_YELLOW << " (" << BOLD_WHITE << libCall << BOLD_YELLOW << ")" << RESET << "\n");
                 prevVertex = vertexName;
+                hadLibcCalls = true;
             }
+            if (!neighbors.empty()) {
+                // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << firstVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+                for (const auto &vertex : neighbors) {
+                    bbExpandedGraph.remove_edge(firstVertex, vertex);
+                    DEBUG_PRINT(BOLD_YELLOW << "@@ Removing edge: " << BOLD_WHITE << firstVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertex << RESET << "\n");
+                    bbExpandedGraph.add_edge(prevVertex, vertex, "control");
+                    DEBUG_PRINT(BOLD_YELLOW << "@@ Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertex << RESET << "\n");
+                }
+                neighbors.clear();
+            }
+            // if (counter > 1) {
+            //     // DEBUG_PRINT(BOLD_YELLOW << "Removing edge: " << BOLD_WHITE << tempBBName << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+            //     bbExpandedGraph.remove_edge(tempBBName, funcMeta.exitNode);
+            //     // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+            //     bbExpandedGraph.add_edge(prevVertex, funcMeta.exitNode, "control");
+            // }
         }
-        if (counter > 1) {
-            // DEBUG_PRINT(BOLD_YELLOW << "Removing edge: " << BOLD_WHITE << tempBBName << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
-            bbExpandedGraph.remove_edge(tempBBName, funcMeta.exitNode);
-            // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
-            bbExpandedGraph.add_edge(prevVertex, funcMeta.exitNode, "control");
-        }
-
+        
 
         std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-expanded.dot";
         DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
@@ -261,7 +276,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
         if (funcName.find("llvm.") == 0) continue; // Skip internal LLVM functions
         if (funcName.find("syscall") == 0) continue; // Skip the syscall wrapper function used for injection
 
-        DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
+        // DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
         funcMeta.funcName = funcName;
         ///// Name the basic blocks
@@ -269,7 +284,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 
         ///// Generate the call graph - vertices/basicblocks
         for (BasicBlock &BB : F) {
-            DEBUG_PRINT_BB(BB);
+            // DEBUG_PRINT_BB(BB);
             auto *TI = BB.getTerminator();
             if (BB.hasNPredecessors(0)) {
                 funcMeta.entryNode = BB.getName().str();
@@ -286,7 +301,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 
             funcMeta.bbGraph.add_vertex(BB.getName().str(),
                                     (fileToMapReader.getLibraryCalls(BB).empty()) ? false : true);
-            DEBUG_PRINT("INTERNAL\n");
+            // DEBUG_PRINT("INTERNAL\n");
         }
 
         ///// Generate the call graph - populate edges

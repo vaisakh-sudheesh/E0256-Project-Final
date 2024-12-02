@@ -15,6 +15,9 @@ struct LibcCallgraph {
     void remove_edge(const std::string& vertex_lhs, const std::string& vertex_rhs);
     void remove_vertex(const std::string& vertex);
     void combine_vertex(const std::string& vertex_lhs, const std::string& vertex_rhs);
+
+    std::vector<std::string> get_outgoing_edges(const std::string& vertex);
+    std::vector<std::string> get_neighbors(const std::string& vertex);
     
     void print();
 
