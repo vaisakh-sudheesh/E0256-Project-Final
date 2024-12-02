@@ -36,6 +36,7 @@ add_subdirectory(LibcListGen)
 add_subdirectory(LLVM)
 add_subdirectory(GraphLib)
 add_subdirectory(test)
+add_subdirectory(kernel/e0256-sandboxing/memgraphlib)
 
 include(kernel)
 include(busybox)
