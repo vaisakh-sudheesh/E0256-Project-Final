@@ -76,9 +76,9 @@ void LibcSandboxing::setupDummySyscall(Module &M) {
 
 void LibcSandboxing::injectDummySyscall(Module &M, Function &F, Instruction &I, int syscallNum){
     
-    IRBuilder<> Builder(&*F.getEntryBlock().getFirstInsertionPt());
+    IRBuilder<> Builder(&I);
 
-    llvm::Value *syscallNumber = Builder.getInt64(543);
+    llvm::Value *syscallNumber = Builder.getInt64(2513);
     Builder.CreateCall(
         Syscall, {syscallNumber, Builder.getInt64(syscallNum)});
     
@@ -111,6 +111,7 @@ bool LibcSandboxing::runOnModule(Module &M) {
         DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
 
         for (BasicBlock &BB : F) {
+
             for (Instruction &I : BB) {
                 if (CallInst *CI = dyn_cast<CallInst>(&I)) {
                     Function *Callee = CI->getCalledFunction();
