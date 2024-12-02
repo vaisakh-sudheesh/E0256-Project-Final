@@ -42,6 +42,9 @@ using namespace llvm;
 
 #include "GraphLib.hpp"
 
+//------------------------------------------------------------------------------
+// Command line options
+//------------------------------------------------------------------------------
 /**
  * @brief Command line option to enable debug mode
  *
@@ -51,7 +54,7 @@ static cl::opt<bool>
 libcCallGraphDebug("cg-debug",
                   cl::desc("Enable debug mode for libc call graph pass."),
                   cl::Hidden,
-                  cl::init(true));
+                  cl::init(false));
 
 #include "LibcCallGraphDebug.h"
 
@@ -114,7 +117,7 @@ static cl::opt<bool> PrintLibcCallGraph(
     cl::init(false));
     
 //-----------------------------------------------------------------------------
-// Utility functions
+// Adding a new section to the binary - to store the sandbox init data
 //-----------------------------------------------------------------------------
 
 void LibcSandboxing::SectionAddressHandler(Module &M) {
@@ -158,7 +161,9 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
 
 }
 
-
+//------------------------------------------------------------------------------
+// Dummy syscall setup & injection
+//------------------------------------------------------------------------------
 void LibcSandboxing::setupDummySyscall(Module &M) {
     // Create a function that will be called by the injected call
     auto &CTX = M.getContext();
@@ -188,6 +193,10 @@ void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
     
 }
 
+//------------------------------------------------------------------------------
+// Utility functions for Basic block operations
+//------------------------------------------------------------------------------
+
 void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
     std::string bbStr;
     raw_string_ostream bbStream(bbStr);
@@ -201,7 +210,7 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
 }
 
 //-----------------------------------------------------------------------------
-// InjectFuncCall implementation
+// Data structures to store the basic block graphs
 //-----------------------------------------------------------------------------
 
 struct funcBBGraphMeta {
@@ -222,7 +231,11 @@ std::map<std::string, funcBBGraphMeta> funcBBToMetaMap;
 
 std::string finalGraphEntryNode;
 std::string finalGraphExitNode;
-LibcCallgraph finalGraph;       // Final graph with libc calls and program abstract state
+LibcCallgraph finalGraph;           // Final graph with libc calls and program abstract state
+
+//------------------------------------------------------------------------------
+// Expand the basic block graph to include function calls
+//------------------------------------------------------------------------------
 
 /**
  * @brief Expand the basic block graph to include function calls
@@ -298,6 +311,9 @@ void ExpandBBGraph(){
     }
 }
 
+//------------------------------------------------------------------------------
+// Convert expanded basic block graph to libc call graph
+//------------------------------------------------------------------------------
 
 /**
  * @brief Convert the basic block graph to a libc call graph
@@ -351,6 +367,10 @@ void ConvertBBGraphToLibcCallGraph(){
         // DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
     }
 }
+
+//------------------------------------------------------------------------------
+// Combine the libc call graphs of each functions to create the final graph
+//------------------------------------------------------------------------------
 
 void CombineLibcgGraph (){
     finalGraph = funcBBToMetaMap["main"].libcCallGraph;
@@ -436,7 +456,9 @@ void CombineLibcgGraph (){
     DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraphExitNode << RESET << "\n");
 }
 
-
+//------------------------------------------------------------------------------
+// New PM interface
+//------------------------------------------------------------------------------
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
     std::map<std::string, std::vector<std::string>> funcToLibcMap;
