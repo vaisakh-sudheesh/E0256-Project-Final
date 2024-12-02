@@ -8,7 +8,7 @@
 
 graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex, bool has_func_call) {
     if (vertex_id_map.find(vertex) != vertex_id_map.end()) {
-        fmt::print("[add_vertex] Vertex {} already exists in the graph \n", vertex);
+        //fmt::print("[add_vertex] Vertex {} already exists in the graph \n", vertex);
         return vertex_id_map[vertex];
     }
 
@@ -20,12 +20,12 @@ graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex, bool has
 
 void LibcCallgraph::add_edge(const std::string& vertex_lhs, const std::string& vertex_rhs, const std::string& edge){
     if (vertex_id_map.find(vertex_lhs) == vertex_id_map.end()) {
-        fmt::print("[add_edge] Vertex {} not found in the graph\n", vertex_lhs);
+        //fmt::print("[add_edge] Vertex {} not found in the graph\n", vertex_lhs);
         return;
     }
 
     if (vertex_id_map.find(vertex_rhs) == vertex_id_map.end()) {
-        fmt::print("[add_edge] Vertex {} not found in the graph\n", vertex_rhs);
+        //fmt::print("[add_edge] Vertex {} not found in the graph\n", vertex_rhs);
         return;
     }
 
@@ -33,12 +33,12 @@ void LibcCallgraph::add_edge(const std::string& vertex_lhs, const std::string& v
 }
 void LibcCallgraph::remove_edge(const std::string& vertex_lhs, const std::string& vertex_rhs){
     if (vertex_id_map.find(vertex_lhs) == vertex_id_map.end()) {
-        fmt::print("[remove_edge] Vertex {} not found in the graph\n", vertex_lhs);
+        //fmt::print("[remove_edge] Vertex {} not found in the graph\n", vertex_lhs);
         return;
     }
 
     if (vertex_id_map.find(vertex_rhs) == vertex_id_map.end()) {
-        fmt::print("[remove_edge] Vertex {} not found in the graph\n", vertex_rhs);
+        //fmt::print("[remove_edge] Vertex {} not found in the graph\n", vertex_rhs);
         return;
     }
 
@@ -47,7 +47,7 @@ void LibcCallgraph::remove_edge(const std::string& vertex_lhs, const std::string
 
 void LibcCallgraph::remove_vertex(const std::string& vertex) {
     if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
-        fmt::print("Vertex {} not found in the graph\n", vertex);
+        //fmt::print("Vertex {} not found in the graph\n", vertex);
         return;
     }
 
@@ -58,12 +58,12 @@ void LibcCallgraph::remove_vertex(const std::string& vertex) {
 
 void LibcCallgraph::combine_vertex(const std::string& vertex_lhs, const std::string& vertex_rhs) {
     if (vertex_id_map.find(vertex_lhs) == vertex_id_map.end()) {
-        fmt::print("[combine_vertex {} {}] Vertex {} not found in the graph\n", vertex_lhs, vertex_rhs, vertex_lhs);
+        //fmt::print("[combine_vertex {} {}] Vertex {} not found in the graph\n", vertex_lhs, vertex_rhs, vertex_lhs);
         return;
     }
 
     if (vertex_id_map.find(vertex_rhs) == vertex_id_map.end()) {
-        fmt::print("[combine_vertex {} {}] Vertex {} not found in the graph\n", vertex_lhs, vertex_rhs, vertex_rhs);
+        //fmt::print("[combine_vertex {} {}] Vertex {} not found in the graph\n", vertex_lhs, vertex_rhs, vertex_rhs);
         return;
     }
 
@@ -71,28 +71,28 @@ void LibcCallgraph::combine_vertex(const std::string& vertex_lhs, const std::str
     for (const auto& edge : graph.get_edges()) {
         if (edge.first.first == vertex_id_map[vertex_rhs]) {
             graph.add_edge(vertex_id_map[vertex_lhs], edge.first.second, edge.second);
-            fmt::print("[combine_vertex {} {}] Adding edge - lhs: {} -> {}\n", vertex_lhs, vertex_rhs, vertex_lhs, graph.get_vertex(edge.first.second));
+            //fmt::print("[combine_vertex {} {}] Adding edge - lhs: {} -> {}\n", vertex_lhs, vertex_rhs, vertex_lhs, graph.get_vertex(edge.first.second));
         }
         if (edge.first.second == vertex_id_map[vertex_rhs]) {
             if (edge.first.first == vertex_id_map[vertex_lhs]) {
                 continue;
             }
             graph.add_edge(edge.first.first, vertex_id_map[vertex_lhs], edge.second);
-            fmt::print("[combine_vertex {} {}] Adding edge - first: {} -> {}\n", vertex_lhs, vertex_rhs, graph.get_vertex(edge.first.first), vertex_lhs);
+            //fmt::print("[combine_vertex {} {}] Adding edge - first: {} -> {}\n", vertex_lhs, vertex_rhs, graph.get_vertex(edge.first.first), vertex_lhs);
         }
     }
     graph.remove_vertex(vertex_id_map[vertex_rhs]);
     vertex_id_map.erase(vertex_rhs);
     func_call_map.erase(vertex_rhs);
-    fmt::print("[combine_vertex {} {}] Removing vertex: {}\n",vertex_lhs, vertex_rhs, vertex_rhs);
+    //fmt::print("[combine_vertex {} {}] Removing vertex: {}\n",vertex_lhs, vertex_rhs, vertex_rhs);
 }
 
 void LibcCallgraph::print(){
-    fmt::print("Graph:\n");
+    //fmt::print("Graph:\n");
     for (auto& vertex : graph.get_vertices()) {
-        fmt::print("Vertex: {}\n", vertex.second);
+        //fmt::print("Vertex: {}\n", vertex.second);
         for (auto& edge : graph.get_edges()) {
-            fmt::print("    Edge: {} -> {}\n", edge.first.first, edge.first.second);
+            //fmt::print("    Edge: {} -> {}\n", edge.first.first, edge.first.second);
         }
     }
 }
@@ -128,7 +128,7 @@ void LibcCallgraph::dump_todot(const std::string& filename) {
 std::vector<std::string> LibcCallgraph::get_outgoing_edges (const std::string& vertex) {
     std::vector<std::string> outgoing_edges;
     if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
-        fmt::print("[get_outgoing_edges] Vertex {} not found in the graph\n", vertex);
+        //fmt::print("[get_outgoing_edges] Vertex {} not found in the graph\n", vertex);
         return outgoing_edges;
     }
 
@@ -141,7 +141,7 @@ std::vector<std::string> LibcCallgraph::get_outgoing_edges (const std::string& v
 std::vector<std::string> LibcCallgraph::get_neighbors(const std::string& vertex) {
     std::vector<std::string> neighbors;
     if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
-        fmt::print("[get_neighbors] Vertex {} not found in the graph\n", vertex);
+        //fmt::print("[get_neighbors] Vertex {} not found in the graph\n", vertex);
         return neighbors;
     }
 
@@ -154,7 +154,7 @@ std::vector<std::string> LibcCallgraph::get_neighbors(const std::string& vertex)
 std::vector<std::string>  LibcCallgraph::get_control_edge_neighbors(const std::string& vertex) const {
     std::vector<std::string> neighbors;
     if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
-        fmt::print("[get_control_edge_neighbors] Vertex {} not found in the graph\n", vertex);
+        //fmt::print("[get_control_edge_neighbors] Vertex {} not found in the graph\n", vertex);
         return neighbors;
     }
 
