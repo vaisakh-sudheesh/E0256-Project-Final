@@ -23,7 +23,7 @@ public:
     static bool isRequired() { return true; }
 
     void setupDummySyscall(llvm::Module &M);
-    void injectDummySyscall(llvm::Module &M, llvm::Function &F, llvm::Instruction &I, int syscallNum);
+    void injectDummySyscall(llvm::Instruction &I, int syscallNum);
 
     void nameBasicBlocks(llvm::Function &F);
 };
@@ -74,7 +74,7 @@ void LibcSandboxing::setupDummySyscall(Module &M) {
     SyscallF->setDoesNotThrow();
 }
 
-void LibcSandboxing::injectDummySyscall(Module &M, Function &F, Instruction &I, int syscallNum){
+void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
     
     IRBuilder<> Builder(&I);
 
@@ -126,7 +126,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
                         if (funcName.find("syscall") == 0) continue;
                         if (fileToMapReader.isStringInMap(funcName)) {
                             DEBUG_PRINT(YELLOW << "Found libc call: " << WHITE << funcName << "\n" << RESET);
-                            injectDummySyscall(M, F, I, fileToMapReader.getValueFromMap(funcName));
+                            injectDummySyscall(I, fileToMapReader.getValueFromMap(funcName));
                             InsertedAtLeastOnePrintf = true;
                         }
                     }
