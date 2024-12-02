@@ -28,7 +28,7 @@ struct LibcCallgraph {
 
     void print();
 
-    void dump_todot(const std::string& filename);
+    void dump_todot(const std::string& filename, std::string entry, std::string exit);
 };
 
 

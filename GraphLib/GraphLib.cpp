@@ -97,12 +97,18 @@ void LibcCallgraph::print(){
     }
 }
 
-void LibcCallgraph::dump_todot(const std::string& filename) {
+void LibcCallgraph::dump_todot(const std::string& filename, std::string entry, std::string exit){ 
     const std::filesystem::path path = filename;
-  const auto vertex_writer{[this](graaf::vertex_id_t vertex_id,
-                                  const std::string& vertex) -> std::string {
+  const auto vertex_writer{[this, entry, exit](graaf::vertex_id_t vertex_id,
+                                               const std::string& vertex) -> std::string {
 
-    if (func_call_map[vertex]) {
+    if (vertex == entry) {
+        return fmt::format("label=\"{}\",fillcolor=lightgreen, style=filled",
+                       vertex);
+    } else if (vertex == exit) {
+        return fmt::format("label=\"{}\",fillcolor=darkorchid1, style=filled",
+                       vertex);
+    } else if (func_call_map[vertex]) {
         return fmt::format("label=\"{}\",fillcolor=lightcoral, style=filled",
                        vertex);
     } else {

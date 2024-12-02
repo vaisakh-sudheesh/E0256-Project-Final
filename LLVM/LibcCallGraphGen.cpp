@@ -245,8 +245,9 @@ void ExpandBBGraph(){
             // }
         }
 
-        std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-expanded.dot";
-        funcMeta.bbExpandedGraph.dump_todot(outputFilename);
+        // std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-expanded.dot";
+        // funcMeta.bbExpandedGraph.dump_todot(outputFilename);
+
         // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
         // DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
         // DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");        
@@ -298,8 +299,9 @@ void ConvertBBGraphToLibcCallGraph(){
             }
         }
 
-        std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-libc.dot";
-        funcMeta.libcCallGraph.dump_todot(outputFilename);
+        // std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-libc.dot";
+        // funcMeta.libcCallGraph.dump_todot(outputFilename);
+
         // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
         // DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
         // DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
@@ -384,7 +386,7 @@ void CombineLibcgGraph (){
 
 
     std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + "final.dot";
-    finalGraph.dump_todot(outputFilename);
+    finalGraph.dump_todot(outputFilename, finalGraphEntryNode, finalGraphExitNode);
     DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
     DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << finalGraphEntryNode << RESET << "\n");
     DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraphExitNode << RESET << "\n");
@@ -393,10 +395,10 @@ void CombineLibcgGraph (){
 
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
+    std::map<std::string, std::vector<std::string>> funcToLibcMap;
     
     setupDummySyscall(M);
-
-    std::map<std::string, std::vector<std::string>> funcToLibcMap;
+    
 
     for (auto &F : M) {
         struct funcBBGraphMeta funcMeta;
@@ -450,9 +452,10 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
         }
         funcBBToMetaMap[funcName] = funcMeta;
         
-        std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + ".dot";
+        // std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + ".dot";
+        // funcMeta.bbGraph.dump_todot(outputFilename);
+
         // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
-        funcMeta.bbGraph.dump_todot(outputFilename);
        
         
         ///// Inject the dummy syscall
