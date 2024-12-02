@@ -5,6 +5,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 set(CMAKE_C_COMPILER /usr/bin/clang-19)
 set(CMAKE_CXX_COMPILER /usr/bin/clang++-19)
 set(CMAKE_LLVM_OPT /usr/bin/opt-19)
+set(CMAKE_LLVM_LLC /usr/bin/llc-19)
 
 project(E0256-Project LANGUAGES CXX C)
 
@@ -73,7 +74,7 @@ build_minimal_fs(${PRJ_SOURCE_DIR}/busybox-src
             ${PRJ_BUILD_DIR}/busybox-build/_install
             ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
             init.ref #init-noshell.ref            
-            ${PROJECT_TEST_OUTPUT}/opt-out/
+            ${PROJECT_TEST_OUTPUT}/out/
         )
 
 add_custom_target(setup_workspace ALL DEPENDS setup_kernel_workspace setup_busybox_workspace)

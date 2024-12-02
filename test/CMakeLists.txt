@@ -3,9 +3,11 @@ set (PROJECT_TESTS ${CMAKE_CURRENT_LIST_DIR})
 set (PROJECT_TEST_CODE ${PROJECT_TESTS}/testcodes)
 
 file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/ir)
+file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/opt-out)
 file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/out)
 file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/dot)
 file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/graph)
+file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT}/asm)
 
 message(STATUS "Project test output directory: ${PROJECT_TEST_OUTPUT}")
 message(STATUS "Project test code directory: ${PROJECT_TEST_CODE}")
@@ -15,19 +17,30 @@ file(GLOB_RECURSE GRAPHGEN_FILES ${PROJECT_TEST_CODE}/*)
 foreach(GRAPHGEN_FILE ${GRAPHGEN_FILES})
     get_filename_component(FILE_NAME ${GRAPHGEN_FILE} NAME)
     set(EXEC_OUT_FILENAME "${FILE_NAME}.out")
+    set(ASM_FILENAME "${FILE_NAME}.s")
     set(FILE_NAME "${FILE_NAME}.ll")
     
     add_custom_command( 
         OUTPUT  ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
                 ${PROJECT_TEST_OUTPUT}/out/${EXEC_OUT_FILENAME}
                 ${PROJECT_TEST_OUTPUT}/dot/${FILE_NAME}.dot
+                ${PROJECT_TEST_OUTPUT}/asm/${FILE_NAME}.s
         COMMAND ${CMAKE_C_COMPILER} -S -emit-llvm ${GRAPHGEN_FILE} -o ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
         COMMAND ${CMAKE_LLVM_OPT} -load-pass-plugin=${CMAKE_BINARY_DIR}/lib/libLibcCallGraphGen.so
                                   -passes="libc-sandboxing" 
                                   -cg-output-path ${PROJECT_TEST_OUTPUT}/dot
-                                  -cg-output-name ${FILE_NAME} 
+                                  -cg-output-name ${FILE_NAME}                                   
                                   ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
-                                  -o ${PROJECT_TEST_OUTPUT}/out/${EXEC_OUT_FILENAME}
+                                  -o ${PROJECT_TEST_OUTPUT}/opt-out/${EXEC_OUT_FILENAME}
+
+                                   # Generate assembly from LLVM IR
+        COMMAND ${CMAKE_LLVM_LLC} ${PROJECT_TEST_OUTPUT}/opt-out/${EXEC_OUT_FILENAME} -o ${PROJECT_TEST_OUTPUT}/asm/${ASM_FILENAME}
+
+        # Compile assembly to executable
+        COMMAND ${CMAKE_C_COMPILER} -fPIE ${PROJECT_TEST_OUTPUT}/asm/${ASM_FILENAME} -o ${PROJECT_TEST_OUTPUT}/out/${EXEC_OUT_FILENAME}  -no-pie  -static
+
+        COMMAND chmod +x ${PROJECT_TEST_OUTPUT}/out/${EXEC_OUT_FILENAME}
+        COMMAND chmod +x ${PROJECT_TEST_OUTPUT}/opt-out/${EXEC_OUT_FILENAME}
         DEPENDS LibcCallGraphGen
         # WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
         COMMENT "Running custom command for ${GRAPHGEN_FILE}"
