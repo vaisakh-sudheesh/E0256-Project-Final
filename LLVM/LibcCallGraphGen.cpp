@@ -171,6 +171,7 @@ struct funcBBGraphMeta {
 
     LibcCallgraph bbGraph;          // Just basic block control flow graph
     LibcCallgraph bbExpandedGraph;  // Graph with libc calls expanded
+    LibcCallgraph libcCallGraph;    // Graph with libc calls and program abstract state 
 };
 std::map<std::string, funcBBGraphMeta> funcBBToMetaMap;
 
@@ -212,6 +213,7 @@ void ExpandBBGraph(){
             for (const auto &libCall : libCalls) {
                 vertexName = bbName + ((libCall.find("user:") == 0) ? "-user_" : "-libc_") + std::to_string(counter++);
                 bbExpandedGraph.add_vertex(vertexName);
+
                 bbExpandedGraph.add_edge(prevVertex, vertexName, libCall);
                 // DEBUG_PRINT(BOLD_YELLOW << "$$ Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertexName << BOLD_YELLOW << " (" << BOLD_WHITE << libCall << BOLD_YELLOW << ")" << RESET << "\n");
                 prevVertex = vertexName;
@@ -247,23 +249,51 @@ void ExpandBBGraph(){
 }
 
 
-struct funcLibcCallGraphMeta {
-    std::string funcName;
-    
-    std::string entryNode;          // Entry and exit node names
-    std::string exitNode;
-
-    LibcCallgraph libcCallGraph;    // Graph with libc calls and program abstract state 
-};
-std::map<std::string, funcLibcCallGraphMeta> funcLibCGToMetaMap;
-
-
-
 /**
  * @brief Convert the basic block graph to a libc call graph
  */
 void ConvertBBGraphToLibcCallGraph(){
+    for (auto &entry : funcBBToMetaMap) {
+        auto &funcMeta = entry.second;
+        const auto &funcName = entry.first;
+        auto &bbExpandedGraph = funcMeta.bbExpandedGraph;
+        auto &libcCallGraph = funcMeta.libcCallGraph;
+        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
+        DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcName << RESET << "\n");
+        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
 
+        libcCallGraph = bbExpandedGraph;
+
+        bool noMergeFound = false;
+        int count = 0;
+
+        while (!noMergeFound) {
+            DEBUG_PRINT(BOLD_YELLOW << "__________________________________________________\n");
+            DEBUG_PRINT(BOLD_YELLOW << "Iteration: " << BOLD_WHITE << count++ << RESET << "\n");
+            noMergeFound = true;
+            for (const auto &vertex : libcCallGraph.get_vertices()) {
+                const std::vector<std::string> neighbors = libcCallGraph.get_control_edge_neighbors(vertex);
+                DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << vertex << " (" << neighbors.size() << ")" << RESET);
+                for (const auto &neighbor : neighbors) {
+                    DEBUG_PRINT(BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET);
+                }
+                DEBUG_PRINT("\n");
+
+                if (neighbors.size() >= 1) {
+                    for (const auto &neighbor : neighbors) {
+
+                        DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
+                        libcCallGraph.combine_vertex(vertex, neighbor);
+                    }
+                    noMergeFound = false;
+                }
+            }
+        }
+
+        std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-libc.dot";
+        funcMeta.libcCallGraph.dump_todot(outputFilename);
+        DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+    }
 }
 
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
