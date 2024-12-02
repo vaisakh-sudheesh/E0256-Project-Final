@@ -165,7 +165,7 @@ void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
     
     IRBuilder<> Builder(&I);
 
-    llvm::Value *syscallNumber = Builder.getInt64(2513);
+    llvm::Value *syscallNumber = Builder.getInt64(336);
     Builder.CreateCall(
         DummySyscall, {syscallNumber, Builder.getInt64(syscallNum)});
     
