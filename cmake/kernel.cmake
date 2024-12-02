@@ -36,26 +36,6 @@ endfunction(setup_kernel_workspace_fn)
 
 
 function(build_qemu_kernel kernel_src_dir kernel_build_dir defconfig toolchain_dir output project_root_dir)
-
-    ###########################################################################
-    ## To ensure all clang dependencies are built before building the kernel
-    ###########################################################################
-
-    # Read lines from a file and store them in a list
-    set(file_path "${CMAKE_CURRENT_SOURCE_DIR}/src/llvm/clang-install-target.dep")
-    file(READ ${file_path} file_content)
-    string(REPLACE "\n" ";" CLANG_DEPS ${file_content})
-    list(REMOVE_AT CLANG_DEPS -1)  # Remove the last empty element if the file ends with a newline
-
-    # Print the list of lines
-    # foreach(line IN LISTS CLANG_DEPS)
-    #     message(STATUS "Line: ${line}")
-    # endforeach()
-
-    ## Create the directory for holding the kernel module code
-    # file(MAKE_DIRECTORY ${kernel_src_dir}/security/e0256-sandboxing)
-
-    
     ###########################################################################
     ## Build rules for kernel
     ###########################################################################
@@ -84,7 +64,7 @@ function(build_qemu_kernel kernel_src_dir kernel_build_dir defconfig toolchain_d
         USES_TERMINAL
     )
     ## A custom target for building the kernel
-    add_custom_target(build_qemu_ubuntu_kernel ALL DEPENDS ${CLANG_DEPS} ${output} )
+    add_custom_target(build_qemu_ubuntu_kernel ALL DEPENDS ${output} )
 
 endfunction(build_qemu_kernel)
 
