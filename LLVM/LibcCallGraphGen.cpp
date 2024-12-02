@@ -158,59 +158,78 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
 //-----------------------------------------------------------------------------
 // InjectFuncCall implementation
 //-----------------------------------------------------------------------------
+
+struct funcGraphMeta {
+    std::string funcName;
+    std::string entryNode;
+    std::string exitNode;
+    std::map <std::string, std::vector<std::string>> bbToLibcMap;
+    LibcCallgraph bbGraph;
+};
+
+std::map<std::string, funcGraphMeta> funcToMetaMap;
+
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
     
-
     setupDummySyscall(M);
 
     std::map<std::string, std::vector<std::string>> funcToLibcMap;
 
     for (auto &F : M) {
-        LibcCallgraph libcCallGraph;
+        struct funcGraphMeta funcMeta;
+        
         if (F.isDeclaration()) continue;            // Skip external functions
         std::string funcName = F.getName().str();
         if (funcName.find("llvm.") == 0) continue; // Skip internal LLVM functions
         if (funcName.find("syscall") == 0) continue; // Skip the syscall wrapper function used for injection
 
-        DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
+        // DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
-        nameBasicBlocks(F);
+        funcMeta.funcName = funcName;
         ///// Name the basic blocks
-        for (BasicBlock &BB : F) {
-            
-            std::vector<std::string> libCalls = fileToMapReader.getLibraryCalls(BB);
-            funcToLibcMap[funcName].insert(funcToLibcMap[funcName].end(), libCalls.begin(), libCalls.end());
-        }
+        nameBasicBlocks(F);        
 
         ///// Generate the call graph - vertices/basicblocks
         for (BasicBlock &BB : F) {
-            DEBUG_PRINT_BB(BB);
+            // DEBUG_PRINT_BB(BB);
+            auto *TI = BB.getTerminator();
             if (BB.hasNPredecessors(0)) {
-                libcCallGraph.add_vertex(BB.getName().str());
-                DEBUG_PRINT("ENTRY\n");
-            } else {
-                auto *TI = BB.getTerminator();
-                if (isa<ReturnInst>(TI)) {
-                    libcCallGraph.add_vertex(BB.getName().str());
-                    DEBUG_PRINT("EXIT\n");
-                } else {
-                    libcCallGraph.add_vertex(BB.getName().str());
-                    DEBUG_PRINT("INTERNAL\n");
-                }
+                funcMeta.entryNode = BB.getName().str();
+                funcMeta.bbGraph.add_vertex(BB.getName().str());                
+                // DEBUG_PRINT("ENTRY\n");
+            } 
+                
+            if (isa<ReturnInst>(TI)) {
+                funcMeta.exitNode = BB.getName().str();
+                funcMeta.bbGraph.add_vertex(BB.getName().str());
+                // DEBUG_PRINT("EXIT\n");
+                continue;
             }
+
+            funcMeta.bbGraph.add_vertex(BB.getName().str());
+            // DEBUG_PRINT("INTERNAL\n");
         }
 
         ///// Generate the call graph - populate edges
         for (BasicBlock &BB : F) {
             for (BasicBlock *Succ : successors(&BB)) {
-                libcCallGraph.add_edge(BB.getName().str(), Succ->getName().str(), "control");
+                funcMeta.bbGraph.add_edge(BB.getName().str(), Succ->getName().str(), "control");
             }
         }
+
+        ///// Generate the libc call list for each BB
+        for (BasicBlock &BB : F) {
+            std::vector<std::string> libCalls = fileToMapReader.getLibraryCalls(BB);
+            if (!libCalls.empty()) {
+                funcMeta.bbToLibcMap[BB.getName().str()] = libCalls;
+            }
+        }
+        funcToMetaMap[funcName] = funcMeta;
         
         std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + ".dot";
         // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
-        libcCallGraph.dump_todot(outputFilename);
+        funcMeta.bbGraph.dump_todot(outputFilename);
        
         
         ///// Inject the dummy syscall
