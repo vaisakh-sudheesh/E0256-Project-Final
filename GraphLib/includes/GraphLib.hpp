@@ -23,6 +23,8 @@ struct LibcCallgraph {
 
     std::vector<std::string> get_vertices() const;
 
+    void insert_graph(const LibcCallgraph& other, const std::string& entry, const std::string& exit);
+
     void print();
 
     void dump_todot(const std::string& filename);

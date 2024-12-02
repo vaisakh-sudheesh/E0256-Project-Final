@@ -176,13 +176,14 @@ std::vector<std::string>  LibcCallgraph::get_vertices() const{
 }
 
 
-using seen_edges_t = std::unordered_set<graaf::edge_id_t, graaf::edge_id_hash>;
-struct record_edges_callback {
-  seen_edges_t& seen_edges;
 
-  record_edges_callback(seen_edges_t& seen_edges) : seen_edges{seen_edges} {}
+void  LibcCallgraph::insert_graph(const LibcCallgraph& other, const std::string& entry, const std::string& exit){
+    for (const auto& vertex : other.graph.get_vertices()) {
+        add_vertex(vertex.second, other.func_call_map.at(vertex.second));
+    }
 
-  void operator()(const graaf::edge_id_t& edge) const {
-    seen_edges.insert(edge);
-  }
-};
+    for (const auto& edge : other.graph.get_edges()) {
+        add_edge(other.graph.get_vertex(edge.first.first), other.graph.get_vertex(edge.first.second), edge.second);
+    }
+
+}

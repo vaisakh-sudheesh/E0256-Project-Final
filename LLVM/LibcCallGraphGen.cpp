@@ -175,6 +175,7 @@ struct funcBBGraphMeta {
     LibcCallgraph libcCallGraph;    // Graph with libc calls and program abstract state 
 };
 std::map<std::string, funcBBGraphMeta> funcBBToMetaMap;
+LibcCallgraph finalGraph;       // Final graph with libc calls and program abstract state
 
 /**
  * @brief Expand the basic block graph to include function calls
@@ -302,6 +303,34 @@ void ConvertBBGraphToLibcCallGraph(){
     }
 }
 
+void CombineLibcgGraph (){
+    finalGraph = funcBBToMetaMap["main"].libcCallGraph;
+    DEBUG_PRINT(BOLD_YELLOW << "Main function: " << BOLD_WHITE << "main" << RESET << "\n");
+    for(auto &entry : finalGraph.get_vertices()){
+        DEBUG_PRINT(BOLD_YELLOW << "Vertex: " << BOLD_WHITE << entry << RESET << "\n");
+        for(auto &edge : finalGraph.get_outgoing_edges(entry)){
+            DEBUG_PRINT(BOLD_YELLOW << "    Edge: " << BOLD_WHITE << edge << RESET << "\n");
+            if (edge.find("user:") == 0) {
+                std::string functionCall = edge.substr(5);
+                DEBUG_PRINT(BOLD_YELLOW << "        Function call: " << BOLD_WHITE << functionCall << RESET << "\n");
+                LibcCallgraph funcGraph = funcBBToMetaMap[functionCall].libcCallGraph;
+                std::string entry = funcBBToMetaMap[functionCall].entryNode;
+                std::string exit = funcBBToMetaMap[functionCall].exitNode;
+
+                DEBUG_PRINT(BOLD_YELLOW << "        Entry: " << BOLD_WHITE << entry << RESET << "\n");
+                DEBUG_PRINT(BOLD_YELLOW << "        Exit: " << BOLD_WHITE << exit << RESET << "\n");
+                finalGraph.insert_graph(funcGraph, entry, exit);   
+            }
+        }
+    }
+    std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + "final.dot";
+    finalGraph.dump_todot(outputFilename);
+    DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+    DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << finalGraph.get_vertices().front() << RESET << "\n");
+    DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraph.get_vertices().back() << RESET << "\n");
+}
+
+
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
     
@@ -413,6 +442,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 ////////////////////////////////////////////////////////////
     ExpandBBGraph();
     ConvertBBGraphToLibcCallGraph();
+    CombineLibcgGraph ();
     return InsertedAtLeastOnePrintf;
 }
 
