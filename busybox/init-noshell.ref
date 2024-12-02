@@ -14,7 +14,11 @@ mount -t tracefs none /sys/kernel/tracing/
 mkdir -p /mnt/host_share && mount -t 9p -o trans=virtio host_share /mnt/host_share -oversion=9p2000.L
 
 echo -e "\nBoot took $(cut -d' ' -f1 /proc/uptime) seconds\n"
+dmesg -c
+syscalltest
+dmesg -c
+poweroff -f
 
-# Start the shell
-exec /bin/sh -l
+## Start the shell
+#exec /bin/sh -l
 

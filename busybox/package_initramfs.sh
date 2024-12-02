@@ -1,5 +1,5 @@
-if [ "$#" -ne 4 ]; then
-    echo "Usage: $0 <src_dir> <build_dir> <busybox_install_dir> <output>"
+if [ "$#" -ne 5 ]; then
+    echo "Usage: $0 <src_dir> <build_dir> <busybox_install_dir> <output> <init-script>"
     exit 1
 fi
 
@@ -7,8 +7,9 @@ src_dir=$1
 build_dir=$2
 busybox_install_dir=$3
 output=$4
+init_script=$5
 
-echo -e "Creating initramfs with arguments:\n \tsrc_dir=\033[1;32m${src_dir}\033[0m,\n \tbuild_dir=\033[1;32m${build_dir}\033[0m,\n \tbusybox_install_dir=\033[1;32m${busybox_install_dir}\033[0m,\n \toutput=\033[1;32m${output}\033[0m"
+echo -e "Creating initramfs with arguments:\n \tsrc_dir=\033[1;32m${src_dir}\033[0m,\n \tbuild_dir=\033[1;32m${build_dir}\033[0m,\n \tbusybox_install_dir=\033[1;32m${busybox_install_dir}\033[0m,\n \toutput=\033[1;32m${output}\033[0m and\n \tinit_script=\033[1;32m${init_script}\033[0m"
 
 rm -f ${output}
 echo "Creating Minimal Filesystem"
@@ -19,7 +20,7 @@ echo "Copying BusyBox file"
 cp -av ${busybox_install_dir}/* .
 echo "Setting up init"
 
-cp ${src_dir}/init.ref init
+cp ${src_dir}/${init_script} init
 chmod +x init
 
 echo "ENV=/.shinit; export ENV" > .profile

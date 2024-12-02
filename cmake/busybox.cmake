@@ -15,6 +15,7 @@ function (setup_busybox_workspace_fn busybox_src_dir project_root_dir)
                 ${busybox_src_dir}/miscutils/syscalltest.c
                 ${busybox_src_dir}/shinit.ref
                 ${busybox_src_dir}/init.ref
+                ${busybox_src_dir}/init-noshell.ref
                 ${busybox_src_dir}/package_initramfs.sh
                 )
     add_custom_command(
@@ -30,6 +31,7 @@ function (setup_busybox_workspace_fn busybox_src_dir project_root_dir)
         COMMAND stat ${busybox_src_dir}/miscutils/syscalltest-support.c > /dev/null || ln -sf ${project_root_dir}/miscutils/syscalltest-support.c ${busybox_src_dir}/miscutils/syscalltest-support.c
         COMMAND stat ${busybox_src_dir}/miscutils/syscalltest.c > /dev/null || ln -sf ${project_root_dir}/miscutils/syscalltest.c ${busybox_src_dir}/miscutils/syscalltest.c
         COMMAND stat ${busybox_src_dir}/shinit.ref > /dev/null || ln -sf ${project_root_dir}/shinit.ref ${busybox_src_dir}/shinit.ref
+        COMMAND stat ${busybox_src_dir}/init-noshell.ref > /dev/null || ln -sf ${project_root_dir}/init-noshell.ref ${busybox_src_dir}/init-noshell.ref
         COMMAND stat ${busybox_src_dir}/init.ref > /dev/null || ln -sf ${project_root_dir}/init.ref ${busybox_src_dir}/init.ref
         COMMAND stat ${busybox_src_dir}/package_initramfs.sh > /dev/null || ln -sf ${project_root_dir}/package_initramfs.sh ${busybox_src_dir}/package_initramfs.sh
 

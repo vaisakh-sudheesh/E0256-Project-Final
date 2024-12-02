@@ -72,6 +72,8 @@ build_minimal_fs(${PRJ_SOURCE_DIR}/busybox-src
             ${PRJ_BUILD_DIR}/busybox-build 
             ${PRJ_BUILD_DIR}/busybox-build/_install
             ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
+            init-noshell.ref
+            #init.ref
         )
 
 add_custom_target(setup_workspace ALL DEPENDS setup_kernel_workspace setup_busybox_workspace)
