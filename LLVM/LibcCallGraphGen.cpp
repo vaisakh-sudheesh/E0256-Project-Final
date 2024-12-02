@@ -147,10 +147,11 @@ void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
 void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
     std::string bbStr;
     raw_string_ostream bbStream(bbStr);
+    std::string funcName = F.getName().str();
 
     for (BasicBlock &BB : F) {
         BB.printAsOperand(bbStream, false);
-        BB.setName(bbStream.str()); // setting the name of the basic block to its label
+        BB.setName("["+funcName+"]"+bbStream.str()); // setting the name of the basic block to its label
         bbStr.clear();
     }    
 }
@@ -268,21 +269,21 @@ void ConvertBBGraphToLibcCallGraph(){
         int count = 0;
 
         while (!noMergeFound) {
-            DEBUG_PRINT(BOLD_YELLOW << "__________________________________________________\n");
-            DEBUG_PRINT(BOLD_YELLOW << "Iteration: " << BOLD_WHITE << count++ << RESET << "\n");
+            // DEBUG_PRINT(BOLD_YELLOW << "__________________________________________________\n");
+            // DEBUG_PRINT(BOLD_YELLOW << "Iteration: " << BOLD_WHITE << count++ << RESET << "\n");
             noMergeFound = true;
             for (const auto &vertex : libcCallGraph.get_vertices()) {
                 const std::vector<std::string> neighbors = libcCallGraph.get_control_edge_neighbors(vertex);
-                DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << vertex << " (" << neighbors.size() << ")" << RESET);
-                for (const auto &neighbor : neighbors) {
-                    DEBUG_PRINT(BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET);
-                }
-                DEBUG_PRINT("\n");
+                // DEBUG_PRINT(BOLD_YELLOW << "Checking neighbors for : "<< BOLD_WHITE << vertex << " (" << neighbors.size() << ")" << RESET);
+                // for (const auto &neighbor : neighbors) {
+                //     DEBUG_PRINT(BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET);
+                // }
+                // DEBUG_PRINT("\n");
 
                 if (neighbors.size() >= 1) {
                     for (const auto &neighbor : neighbors) {
 
-                        DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
+                        // DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
                         libcCallGraph.combine_vertex(vertex, neighbor);
                         if (funcMeta.exitNode == neighbor) {
                             funcMeta.exitNode = vertex;
@@ -295,7 +296,9 @@ void ConvertBBGraphToLibcCallGraph(){
 
         std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-libc.dot";
         funcMeta.libcCallGraph.dump_todot(outputFilename);
-        DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+        // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+        // DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
+        // DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
     }
 }
 
