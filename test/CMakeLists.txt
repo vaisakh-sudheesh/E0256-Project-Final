@@ -23,6 +23,7 @@ foreach(GRAPHGEN_FILE ${GRAPHGEN_FILES})
     add_custom_command( 
         OUTPUT  ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
                 ${PROJECT_TEST_OUTPUT}/out/${EXEC_OUT_FILENAME}
+                ${PROJECT_TEST_OUTPUT}/opt-out/${EXEC_OUT_FILENAME}
                 ${PROJECT_TEST_OUTPUT}/dot/${FILE_NAME}.dot
                 ${PROJECT_TEST_OUTPUT}/asm/${FILE_NAME}.s
         COMMAND ${CMAKE_C_COMPILER} -S -emit-llvm ${GRAPHGEN_FILE} -o ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
@@ -73,8 +74,10 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/dot/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/graph/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/out/*
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/opt-out/*
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/asm/*
 )
 
-add_custom_target(graphgen_tests ALL DEPENDS generate_graphs)
+add_custom_target(graphgen_tests ALL DEPENDS clean_output generate_graphs)
 
-add_custom_target(run_tests ALL DEPENDS clean_output LibcCallGraphGen graphgen_tests)
+add_custom_target(run_tests ALL DEPENDS  LibcCallGraphGen graphgen_tests)
