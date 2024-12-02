@@ -38,7 +38,10 @@ SYSCALL_DEFINE2(sandbox_init, unsigned char*, data, unsigned long, size)
 
     printk(KERN_INFO "Successfully copied data from user space\n");
 
-    printk(KERN_INFO "Data: %s\n", kernel_buffer);
+    //printk(KERN_INFO "Data: %s\n", kernel_buffer);
+    // for (int i = 0; i < size; i++) {
+    //     printk(KERN_INFO "Data[%d]: %d\n", i, kernel_buffer[i]);
+    // }
 #endif // CONFIG_E0_256_SANDBOX_PROJECT    
     return retval;
 }

@@ -128,7 +128,7 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
         ArrayType *arrayType = ArrayType::get(Type::getInt8Ty(CTX), 16);
         GlobalVariable *newGlobal = new GlobalVariable(
             M, arrayType, false, GlobalValue::ExternalLinkage,
-            Constant::getNullValue(arrayType), "myGlobalVar");
+            Constant::getNullValue(arrayType), "SanboxInitData");
 
         newGlobal->setSection(sectionName);
 
@@ -140,7 +140,24 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
         Constant *initArray = ConstantArray::get(arrayType, initValues);
         newGlobal->setInitializer(initArray);
 
+        for (auto &F : M) {
+            if (F.isDeclaration())
+                continue;
+            std::string funcName = F.getName().str();
+            if (funcName.find("main") == 0){
+                PointerType *PrintfArgTy = PointerType::getUnqual(Type::getInt8Ty(CTX));
+
+                IRBuilder<> Builder(&*F.getEntryBlock().getFirstInsertionPt());
+
+                llvm::Value *syscallNumber = Builder.getInt64(337);
+                auto bufferPtr = Builder.CreatePointerCast(newGlobal, PrintfArgTy, "bufferPtr");
+                Builder.CreateCall(
+                    DummySyscall, {syscallNumber, bufferPtr, Builder.getInt64(16)});
+            }
+        }
+
 }
+
 
 void LibcSandboxing::setupDummySyscall(Module &M) {
     // Create a function that will be called by the injected call

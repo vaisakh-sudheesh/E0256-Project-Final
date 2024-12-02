@@ -77,8 +77,9 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/opt-out/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/asm/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/zImage
 )
 
 add_custom_target(graphgen_tests ALL DEPENDS clean_output generate_graphs)
 
-add_custom_target(run_tests ALL DEPENDS  LibcCallGraphGen graphgen_tests)
+add_custom_target(run_tests ALL DEPENDS  LibcCallGraphGen graphgen_tests build_qemu_ubuntu_kernel)
