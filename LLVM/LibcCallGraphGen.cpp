@@ -284,6 +284,9 @@ void ConvertBBGraphToLibcCallGraph(){
 
                         DEBUG_PRINT(BOLD_YELLOW << "Merging: " << BOLD_WHITE << vertex << BOLD_YELLOW << " -> " << BOLD_WHITE << neighbor << RESET << "\n");
                         libcCallGraph.combine_vertex(vertex, neighbor);
+                        if (funcMeta.exitNode == neighbor) {
+                            funcMeta.exitNode = vertex;
+                        }
                     }
                     noMergeFound = false;
                 }
