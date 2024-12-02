@@ -33,9 +33,9 @@
 extern const char sandbox_data[];
 extern const long sandbox_init_data_size;
 
-#define __NR_sandbox_dummycall      335
-#define __NR_sandbox_init           336
-#define __NR_sandbox_cleanup        337
+#define __NR_sandbox_dummycall      336
+#define __NR_sandbox_init           337
+#define __NR_sandbox_cleanup        338
 
 int syscalltest_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int syscalltest_main(int argc UNUSED_PARAM, char **argv UNUSED_PARAM)

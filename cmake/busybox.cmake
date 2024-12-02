@@ -49,13 +49,13 @@ function(build_busybox busybox_src_dir busybox_build_dir output project_root_dir
         WORKING_DIRECTORY ${busybox_src_dir}
 
         COMMAND echo "Configuring BusyBox"
-        COMMAND make O=${busybox_build_dir} defconfig
+        COMMAND CC=${CMAKE_C_COMPILER} make O=${busybox_build_dir} defconfig
 
         COMMAND echo "Building BusyBox with ${N} processors"
-        COMMAND make O=${busybox_build_dir}
+        COMMAND CC=${CMAKE_C_COMPILER} make O=${busybox_build_dir}
 
         COMMAND echo "Installing BusyBox"
-        COMMAND make O=${busybox_build_dir} install > /dev/null
+        COMMAND CC=${CMAKE_C_COMPILER} make O=${busybox_build_dir} install > /dev/null
 
         COMMENT "BusyBox Build"
         USES_TERMINAL
