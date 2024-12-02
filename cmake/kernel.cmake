@@ -60,6 +60,7 @@ function(build_qemu_kernel kernel_src_dir kernel_build_dir defconfig toolchain_d
         COMMAND scripts/config --file ${kernel_build_dir}/.config  --set-str CONFIG_SYSTEM_TRUSTED_KEYS \"\"
         COMMAND scripts/config --file ${kernel_build_dir}/.config  --set-str CONFIG_SYSTEM_REVOCATION_KEYS \"\"
         COMMAND make O=${kernel_build_dir}  LLVM=${toolchain_dir} -j${CPU_COUNT}
+        COMMAND cp ${kernel_build_dir}/arch/x86_64/boot/bzImage ${output}
         COMMENT "Linux/QEMU Kernel Build"
         USES_TERMINAL
     )

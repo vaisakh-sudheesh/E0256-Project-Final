@@ -28,6 +28,9 @@ set(PRJ_DOWNLOAD_DIR    ${PRJ_WORKING_DIR}/download-dir)
 set(PRJ_BUILD_DIR       ${PRJ_WORKING_DIR}/build-dir)
 set(PRJ_INSTALL_DIR     ${PRJ_WORKING_DIR}/install-dir)
 
+set (PROJECT_TEST_OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/out-dir)
+file(MAKE_DIRECTORY ${PROJECT_TEST_OUTPUT})
+
 
 add_subdirectory(LibcListGen)
 add_subdirectory(LLVM)
@@ -54,7 +57,7 @@ build_qemu_kernel(${PRJ_SOURCE_DIR}/linux-src
             ${PRJ_BUILD_DIR}/linux-build 
             kernel_x86-qemu-minimal_defconfig 
             /usr/lib/llvm-19/bin/
-            ${PRJ_BUILD_DIR}/linux-build/arch/x86/boot/bzImage
+            ${PROJECT_TEST_OUTPUT}/bzImage
             ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel/
         )
 
@@ -69,7 +72,16 @@ build_busybox(${PRJ_SOURCE_DIR}/busybox-src
 build_minimal_fs(${PRJ_SOURCE_DIR}/busybox-src 
             ${PRJ_BUILD_DIR}/busybox-build 
             ${PRJ_BUILD_DIR}/busybox-build/_install
-            ${PRJ_BUILD_DIR}/initramfs-busybox-x86.cpio.gz
+            ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
         )
 
 add_custom_target(setup_workspace ALL DEPENDS setup_kernel_workspace setup_busybox_workspace)
+
+enable_testing()
+add_test(NAME test_kernel
+                COMMAND qemu-system-x86_64 
+                        -kernel  ${PROJECT_TEST_OUTPUT}/bzImage
+                        -initrd ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
+                        -nographic -append "console=ttyS0"
+                
+)
