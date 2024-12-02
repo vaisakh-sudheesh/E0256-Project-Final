@@ -1,47 +1,31 @@
-//========================================================================
-// FILE:
-//    InjectFuncCall.cpp
-//
-// DESCRIPTION:
-//    For each function defined in the input IR module, InjectFuncCall inserts
-//    a call to printf (from the C standard I/O library). The injected IR code
-//    corresponds to the following function call in ANSI C:
-//    ```C
-//      printf("(llvm-tutor) Hello from: %s\n(llvm-tutor)   number of arguments: %d\n",
-//             FuncName, FuncNumArgs);
-//    ```
-//    This code is inserted at the beginning of each function, i.e. before any
-//    other instruction is executed.
-//
-//    To illustrate, for `void foo(int a, int b, int c)`, the code added by InjectFuncCall
-//    will generated the following output at runtime:
-//    ```
-//    (llvm-tutor) Hello World from: foo
-//    (llvm-tutor)   number of arguments: 3
-//    ```
-//
-// USAGE:
-//      $ opt -load-pass-plugin <BUILD_DIR>/lib/libInjectFunctCall.so `\`
-//        -passes=-"inject-func-call" <bitcode-file>
-//
-// License: MIT
-//========================================================================
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
 
+#include "LibcCallGraphUtils.h"
+
+
+
 //------------------------------------------------------------------------------
 // New PM interface
 //------------------------------------------------------------------------------
-struct InjectFuncCall : public llvm::PassInfoMixin<InjectFuncCall> {
-  llvm::PreservedAnalyses run(llvm::Module &M,
-                              llvm::ModuleAnalysisManager &);
-  bool runOnModule(llvm::Module &M);
+struct LibcSandboxing : public llvm::PassInfoMixin<LibcSandboxing> {
+private:
+    llvm::FileToMapReader fileToMapReader;
+    llvm::Function *SyscallF;
+    llvm::FunctionCallee Syscall;
 
-  // Without isRequired returning true, this pass will be skipped for functions
-  // decorated with the optnone LLVM attribute. Note that clang -O0 decorates
-  // all functions with optnone.
-  static bool isRequired() { return true; }
+public:
+    llvm::PreservedAnalyses run(llvm::Module &M,
+                                llvm::ModuleAnalysisManager &);
+    bool runOnModule(llvm::Module &M);
+
+    static bool isRequired() { return true; }
+
+    void setupDummySyscall(llvm::Module &M);
+    void injectDummySyscall(llvm::Module &M, llvm::Function &F, llvm::Instruction &I, int syscallNum);
+
+    void nameBasicBlocks(llvm::Function &F);
 };
 
 #include "llvm/IR/IRBuilder.h"
@@ -50,84 +34,110 @@ struct InjectFuncCall : public llvm::PassInfoMixin<InjectFuncCall> {
 
 using namespace llvm;
 
-#define DEBUG_TYPE "inject-func-call"
+#define DEBUG_TYPE "libc-sandboxing"
+
+
+
+/**
+ * @brief Command line option to enable debug mode
+ *
+ * @details This option allows the user to enable debug mode for the libc call graph pass.
+ */
+static cl::opt<bool>
+libcCallGraphDebug("cg-debug",
+                  cl::desc("Enable debug mode for libc call graph pass."),
+                  cl::Hidden,
+                  cl::init(true));
+
+#include "LibcCallGraphDebug.h"
+
+//-----------------------------------------------------------------------------
+// Utility functions
+//-----------------------------------------------------------------------------
+
+void LibcSandboxing::setupDummySyscall(Module &M) {
+    // Create a function that will be called by the injected call
+    auto &CTX = M.getContext();
+    IntegerType *Int64Ty = Type::getInt64Ty(CTX);
+
+    FunctionType *SyscallTy = FunctionType::get(
+        Type::getInt64Ty(CTX),
+        Int64Ty,
+        /*isVarArg=*/true);
+
+    
+    Syscall = M.getOrInsertFunction("syscall", SyscallTy);
+    assert(Syscall && "Syscall function not found");
+
+    // Set attributes as per inferLibFuncAttributes in BuildLibCalls.cpp
+    SyscallF = dyn_cast<Function>(Syscall.getCallee());
+    SyscallF->setDoesNotThrow();
+}
+
+void LibcSandboxing::injectDummySyscall(Module &M, Function &F, Instruction &I, int syscallNum){
+    
+    IRBuilder<> Builder(&*F.getEntryBlock().getFirstInsertionPt());
+
+    llvm::Value *syscallNumber = Builder.getInt64(543);
+    Builder.CreateCall(
+        Syscall, {syscallNumber, Builder.getInt64(syscallNum)});
+    
+}
+
+void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
+    std::string bbStr;
+    raw_string_ostream bbStream(bbStr);
+
+    for (BasicBlock &BB : F) {
+        BB.printAsOperand(bbStream, false);
+        BB.setName(bbStream.str()); // setting the name of the basic block to its label
+    }
+}
 
 //-----------------------------------------------------------------------------
 // InjectFuncCall implementation
 //-----------------------------------------------------------------------------
-bool InjectFuncCall::runOnModule(Module &M) {
-  bool InsertedAtLeastOnePrintf = false;
+bool LibcSandboxing::runOnModule(Module &M) {
+    bool InsertedAtLeastOnePrintf = false;
 
-  auto &CTX = M.getContext();
-  PointerType *PrintfArgTy = PointerType::getUnqual(Type::getInt8Ty(CTX));
+    setupDummySyscall(M);
 
-  // STEP 1: Inject the declaration of printf
-  // ----------------------------------------
-  // Create (or _get_ in cases where it's already available) the following
-  // declaration in the IR module:
-  //    declare i32 @printf(i8*, ...)
-  // It corresponds to the following C declaration:
-  //    int printf(char *, ...)
-  FunctionType *PrintfTy = FunctionType::get(
-      IntegerType::getInt32Ty(CTX),
-      PrintfArgTy,
-      /*IsVarArgs=*/true);
+    for (auto &F : M) {
+        if (F.isDeclaration()) continue;            // Skip external functions
+        std::string funcName = F.getName().str();
+        if (funcName.find("llvm.") == 0) continue; // Skip internal LLVM functions
+        if (funcName.find("syscall") == 0) continue; // Skip the syscall wrapper function used for injection
 
-  FunctionCallee Printf = M.getOrInsertFunction("printf", PrintfTy);
+        DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
 
-  // Set attributes as per inferLibFuncAttributes in BuildLibCalls.cpp
-  Function *PrintfF = dyn_cast<Function>(Printf.getCallee());
-  PrintfF->setDoesNotThrow();
-  PrintfF->addParamAttr(0, Attribute::NoCapture);
-  PrintfF->addParamAttr(0, Attribute::ReadOnly);
-
-
-  // STEP 2: Inject a global variable that will hold the printf format string
-  // ------------------------------------------------------------------------
-  llvm::Constant *PrintfFormatStr = llvm::ConstantDataArray::getString(
-      CTX, "(llvm-tutor) Hello from: %s\n(llvm-tutor)   number of arguments: %d\n");
-
-  Constant *PrintfFormatStrVar =
-      M.getOrInsertGlobal("PrintfFormatStr", PrintfFormatStr->getType());
-  dyn_cast<GlobalVariable>(PrintfFormatStrVar)->setInitializer(PrintfFormatStr);
-
-  // STEP 3: For each function in the module, inject a call to printf
-  // ----------------------------------------------------------------
-  for (auto &F : M) {
-    if (F.isDeclaration())
-      continue;
-
-    // Get an IR builder. Sets the insertion point to the top of the function
-    IRBuilder<> Builder(&*F.getEntryBlock().getFirstInsertionPt());
-
-    // Inject a global variable that contains the function name
-    auto FuncName = Builder.CreateGlobalStringPtr(F.getName());
-
-    // Printf requires i8*, but PrintfFormatStrVar is an array: [n x i8]. Add
-    // a cast: [n x i8] -> i8*
-    llvm::Value *FormatStrPtr =
-        Builder.CreatePointerCast(PrintfFormatStrVar, PrintfArgTy, "formatStr");
-
-    // The following is visible only if you pass -debug on the command line
-    // *and* you have an assert build.
-    LLVM_DEBUG(dbgs() << " Injecting call to printf inside " << F.getName()
-                      << "\n");
-
-    // Finally, inject a call to printf
-    Builder.CreateCall(
-        Printf, {FormatStrPtr, FuncName, Builder.getInt32(F.arg_size())});
-
-    InsertedAtLeastOnePrintf = true;
+        for (BasicBlock &BB : F) {
+            for (Instruction &I : BB) {
+                if (CallInst *CI = dyn_cast<CallInst>(&I)) {
+                    Function *Callee = CI->getCalledFunction();
+                    if (Callee) {
+                        std::string funcName = Callee->getName().str();
+                        if (funcName.find("syscall") == 0) continue;
+                        if (fileToMapReader.isStringInMap(funcName)) {
+                            DEBUG_PRINT(YELLOW << "Found libc call: " << WHITE << funcName << "\n" << RESET);
+                            injectDummySyscall(M, F, I, fileToMapReader.getValueFromMap(funcName));
+                            InsertedAtLeastOnePrintf = true;
+                        }
+                    }
+                }
+            }
+        }
+    
   }
 
   return InsertedAtLeastOnePrintf;
 }
 
-PreservedAnalyses InjectFuncCall::run(llvm::Module &M,
+PreservedAnalyses LibcSandboxing::run(llvm::Module &M,
                                        llvm::ModuleAnalysisManager &) {
-  bool Changed =  runOnModule(M);
+    fileToMapReader.readFileToMap("/home/vaisakhps/developer/E0256-Security/E0-256_ProjectFinal/test/libc_listing.lst");
+    bool Changed =  runOnModule(M);
 
-  return (Changed ? llvm::PreservedAnalyses::none()
+    return (Changed ? llvm::PreservedAnalyses::none()
                   : llvm::PreservedAnalyses::all());
 }
 
@@ -136,13 +146,13 @@ PreservedAnalyses InjectFuncCall::run(llvm::Module &M,
 // New PM Registration
 //-----------------------------------------------------------------------------
 llvm::PassPluginLibraryInfo getInjectFuncCallPluginInfo() {
-  return {LLVM_PLUGIN_API_VERSION, "inject-func-call", LLVM_VERSION_STRING,
+  return {LLVM_PLUGIN_API_VERSION, "libc-sandboxing", LLVM_VERSION_STRING,
           [](PassBuilder &PB) {
             PB.registerPipelineParsingCallback(
                 [](StringRef Name, ModulePassManager &MPM,
                    ArrayRef<PassBuilder::PipelineElement>) {
-                  if (Name == "inject-func-call") {
-                    MPM.addPass(InjectFuncCall());
+                  if (Name == "libc-sandboxing") {
+                    MPM.addPass(LibcSandboxing());
                     return true;
                   }
                   return false;
