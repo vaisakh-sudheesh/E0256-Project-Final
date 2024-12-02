@@ -28,6 +28,7 @@ public:
     void injectDummySyscall(llvm::Instruction &I, int syscallNum);
 
     void nameBasicBlocks(llvm::Function &F);
+    void SectionAddressHandler(llvm::Module &M);
 };
 
 #include "llvm/IR/IRBuilder.h"
@@ -114,6 +115,31 @@ static cl::opt<bool> PrintLibcCallGraph(
 //-----------------------------------------------------------------------------
 // Utility functions
 //-----------------------------------------------------------------------------
+
+void LibcSandboxing::SectionAddressHandler(Module &M) {
+ LLVMContext &CTX = M.getContext();
+        IRBuilder<> Builder(CTX);
+
+        // Define the section name you want to add
+        const char *sectionName = "sandbox_init_data_section";
+
+        // Create a new global variable in the specified section
+        ArrayType *arrayType = ArrayType::get(Type::getInt8Ty(CTX), 16);
+        GlobalVariable *newGlobal = new GlobalVariable(
+            M, arrayType, false, GlobalValue::ExternalLinkage,
+            Constant::getNullValue(arrayType), "myGlobalVar");
+
+        newGlobal->setSection(sectionName);
+
+        // Optionally, initialize the global variable with some data
+        std::vector<Constant *> initValues;
+        for (int i = 0; i < 16; ++i) {
+            initValues.push_back(ConstantInt::get(Type::getInt8Ty(CTX), i));
+        }
+        Constant *initArray = ConstantArray::get(arrayType, initValues);
+        newGlobal->setInitializer(initArray);
+
+}
 
 void LibcSandboxing::setupDummySyscall(Module &M) {
     // Create a function that will be called by the injected call
@@ -506,6 +532,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
     ExpandBBGraph();
     ConvertBBGraphToLibcCallGraph();
     CombineLibcgGraph ();
+    SectionAddressHandler(M);
     return InsertedAtLeastOnePrintf;
 }
 
