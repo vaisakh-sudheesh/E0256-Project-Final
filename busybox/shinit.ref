@@ -1,0 +1,1 @@
+alias poweroff='echo "Powering off..."; poweroff -f now'

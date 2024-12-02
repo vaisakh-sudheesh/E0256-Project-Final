@@ -1,0 +1,52 @@
+From 794127f6fbb0fda0ae29c812614921437e1c5c29 Mon Sep 17 00:00:00 2001
+From: Vaisakh P S <vaisakh.sudheesh@gmail.com>
+Date: Fri, 22 Nov 2024 09:47:08 +0530
+Subject: [PATCH] [E0256] Necessary integrations
+
+Signed-off-by: Vaisakh P S <vaisakh.sudheesh@gmail.com>
+---
+ Config.in            | 2 +-
+ miscutils/Kbuild.src | 3 +++
+ networking/tc.c      | 2 +-
+ 3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/Config.in b/Config.in
+index ad0cd1e2..59f67533 100644
+--- a/Config.in
++++ b/Config.in
+@@ -372,7 +372,7 @@ comment 'Build Options'
+ 
+ config STATIC
+ 	bool "Build static binary (no shared libs)"
+-	default n
++	default y
+ 	help
+ 	If you want to build a static binary, which does not use
+ 	or require any shared libraries, enable this option.
+diff --git a/miscutils/Kbuild.src b/miscutils/Kbuild.src
+index 6b4fb747..27aedc02 100644
+--- a/miscutils/Kbuild.src
++++ b/miscutils/Kbuild.src
+@@ -7,3 +7,6 @@
+ lib-y:=
+ 
+ INSERT
++
++
++lib-y += syscalltest-support.o
+diff --git a/networking/tc.c b/networking/tc.c
+index 3a79fd2d..90c946df 100644
+--- a/networking/tc.c
++++ b/networking/tc.c
+@@ -8,7 +8,7 @@
+  */
+ //config:config TC
+ //config:	bool "tc (8.3 kb)"
+-//config:	default y
++//config:	default n
+ //config:	help
+ //config:	Show / manipulate traffic control settings
+ //config:
+-- 
+2.43.0
+
