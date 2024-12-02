@@ -10,5 +10,6 @@ int testing_function(int a, int b, int c) {
 int main () {
   printf("Hello World from: %s\n", __func__);
   testing_function(1, 2, 3);
+  putchar('\n');
   return 0;
 }

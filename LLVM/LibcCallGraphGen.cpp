@@ -18,7 +18,7 @@ private:
 public:
     llvm::PreservedAnalyses run(llvm::Module &M,
                                 llvm::ModuleAnalysisManager &);
-    bool runOnModule(llvm::Module &M);
+    bool runOnModule(llvm::Module &M, llvm::ModuleAnalysisManager &MAM, llvm::FunctionAnalysisManager &FAM);
 
     static bool isRequired() { return true; }
 
@@ -97,7 +97,7 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
 //-----------------------------------------------------------------------------
 // InjectFuncCall implementation
 //-----------------------------------------------------------------------------
-bool LibcSandboxing::runOnModule(Module &M) {
+bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
 
     setupDummySyscall(M);
@@ -109,9 +109,15 @@ bool LibcSandboxing::runOnModule(Module &M) {
         if (funcName.find("syscall") == 0) continue; // Skip the syscall wrapper function used for injection
 
         DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
-
+        LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
         for (BasicBlock &BB : F) {
+            ///// Name the basic blocks
+            nameBasicBlocks(F);
 
+            ///// Generate the graph
+            DEBUG_PRINT_BB(BB);
+
+            ///// Inject syscall for libc calls
             for (Instruction &I : BB) {
                 if (CallInst *CI = dyn_cast<CallInst>(&I)) {
                     Function *Callee = CI->getCalledFunction();
@@ -134,9 +140,10 @@ bool LibcSandboxing::runOnModule(Module &M) {
 }
 
 PreservedAnalyses LibcSandboxing::run(llvm::Module &M,
-                                       llvm::ModuleAnalysisManager &) {
+                                       llvm::ModuleAnalysisManager &AM) {
+    FunctionAnalysisManager &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
     fileToMapReader.readFileToMap("/home/vaisakhps/developer/E0256-Security/E0-256_ProjectFinal/test/libc_listing.lst");
-    bool Changed =  runOnModule(M);
+    bool Changed =  runOnModule(M, AM, FAM);
 
     return (Changed ? llvm::PreservedAnalyses::none()
                   : llvm::PreservedAnalyses::all());
