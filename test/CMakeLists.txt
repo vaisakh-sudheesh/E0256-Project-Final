@@ -76,6 +76,7 @@ add_custom_target(
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/out/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/opt-out/*
     COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/asm/*
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${PROJECT_TEST_OUTPUT}/initramfs-busybox-x86.cpio.gz
 )
 
 add_custom_target(graphgen_tests ALL DEPENDS clean_output generate_graphs)
