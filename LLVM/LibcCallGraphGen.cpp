@@ -208,13 +208,17 @@ void ExpandBBGraph(){
             prevVertex =  tempBBName  = bbName;
 
             const auto &libCalls = bbEntry.second;
+            std::string vertexName;
             for (const auto &libCall : libCalls) {
-                std::string vertexName = bbName + ((libCall.find("user:") == 0) ? "-user_" : "-libc_") + std::to_string(counter++);
+                vertexName = bbName + ((libCall.find("user:") == 0) ? "-user_" : "-libc_") + std::to_string(counter++);
                 bbExpandedGraph.add_vertex(vertexName);
                 bbExpandedGraph.add_edge(prevVertex, vertexName, libCall);
                 DEBUG_PRINT(BOLD_YELLOW << "$$ Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertexName << BOLD_YELLOW << " (" << BOLD_WHITE << libCall << BOLD_YELLOW << ")" << RESET << "\n");
                 prevVertex = vertexName;
                 hadLibcCalls = true;
+            }
+            if (funcMeta.exitNode == bbName) {
+                funcMeta.exitNode = vertexName;
             }
             if (!neighbors.empty()) {
                 // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << firstVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
@@ -235,8 +239,12 @@ void ExpandBBGraph(){
         }
         
 
+
         std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-expanded.dot";
         DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+        DEBUG_PRINT(BOLD_GREEN << "\tEntry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
+        DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+
         funcMeta.bbExpandedGraph.dump_todot(outputFilename);
     }
 }
