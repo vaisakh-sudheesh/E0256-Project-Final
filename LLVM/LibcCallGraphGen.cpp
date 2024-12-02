@@ -36,7 +36,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "libc-sandboxing"
 
-
+#include "GraphLib.hpp"
 
 /**
  * @brief Command line option to enable debug mode

@@ -26,4 +26,6 @@ link_directories(${LLVM_LIBRARY_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
 add_library(LibcCallGraphGen  SHARED LibcCallGraphGen.cpp)
-target_link_libraries(LibcCallGraphGen "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>")
+target_link_libraries(LibcCallGraphGen 
+      "$<$<PLATFORM_ID:Darwin>:-undefined dynamic_lookup>"
+      GraphLib)
