@@ -92,8 +92,11 @@ void LibcCallgraph::dump_todot(const std::string& filename) {
   const auto vertex_writer{[](graaf::vertex_id_t vertex_id,
                               const std::string& vertex) -> std::string {
 
-    return fmt::format("label=\"{}: {}\", fillcolor=lightcyan, style=filled",
-                       vertex_id, vertex);
+    return fmt::format("label=\""
+                        //"{}:"
+                        " {}\", fillcolor=lightcyan, style=filled",
+                       //vertex_id, 
+                       vertex);
   }};
 
   const auto edge_writer{[](const graaf::edge_id_t& /*edge_id*/,

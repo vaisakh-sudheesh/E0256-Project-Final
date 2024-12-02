@@ -1,6 +1,7 @@
 project (GraphLib)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -15,10 +16,11 @@ FetchContent_MakeAvailable(graaflib)
 
 
 FetchContent_Declare(
-        fmtlib
-        GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-        GIT_TAG 11.0.2
+    fmtlib
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG 11.0.2
 )
+
 FetchContent_MakeAvailable(fmtlib)
 
 ##############################################

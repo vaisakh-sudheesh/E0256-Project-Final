@@ -4,7 +4,9 @@
 
 #include "LibcCallGraphUtils.h"
 
-
+#include <map>
+#include <string>
+#include <vector>
 
 //------------------------------------------------------------------------------
 // New PM interface
@@ -91,7 +93,8 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
     for (BasicBlock &BB : F) {
         BB.printAsOperand(bbStream, false);
         BB.setName(bbStream.str()); // setting the name of the basic block to its label
-    }
+        bbStr.clear();
+    }    
 }
 
 //-----------------------------------------------------------------------------
@@ -99,10 +102,14 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
 //-----------------------------------------------------------------------------
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
+    
 
     setupDummySyscall(M);
 
+    std::map<std::string, std::vector<std::string>> funcToLibcMap;
+
     for (auto &F : M) {
+        LibcCallgraph libcCallGraph;
         if (F.isDeclaration()) continue;            // Skip external functions
         std::string funcName = F.getName().str();
         if (funcName.find("llvm.") == 0) continue; // Skip internal LLVM functions
@@ -110,21 +117,42 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 
         DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
-
+        nameBasicBlocks(F);
         ///// Name the basic blocks
         for (BasicBlock &BB : F) {
-            nameBasicBlocks(F);
+            
+            std::vector<std::string> libCalls = fileToMapReader.getLibraryCalls(BB);
+            funcToLibcMap[funcName].insert(funcToLibcMap[funcName].end(), libCalls.begin(), libCalls.end());
         }
 
-        ///// Generate the call graph
+        ///// Generate the call graph - vertices/basicblocks
         for (BasicBlock &BB : F) {
-            std::vector<std::string> libCalls = fileToMapReader.getLibraryCalls(BB);
-            for (std::string &libCall : libCalls) {
-                DEBUG_PRINT(BOLD_YELLOW << "Found libc call: " << BOLD_MAGENTA << libCall << RESET << "\n");
+            DEBUG_PRINT_BB(BB);
+            if (BB.hasNPredecessors(0)) {
+                libcCallGraph.add_vertex(BB.getName().str());
+                DEBUG_PRINT("ENTRY\n");
+            } else {
+                auto *TI = BB.getTerminator();
+                if (isa<ReturnInst>(TI)) {
+                    libcCallGraph.add_vertex(BB.getName().str());
+                    DEBUG_PRINT("EXIT\n");
+                } else {
+                    libcCallGraph.add_vertex(BB.getName().str());
+                    DEBUG_PRINT("INTERNAL\n");
+                }
+            }
+        }
+
+        ///// Generate the call graph - populate edges
+        for (BasicBlock &BB : F) {
+            for (BasicBlock *Succ : successors(&BB)) {
+                libcCallGraph.add_edge(BB.getName().str(), Succ->getName().str(), "control");
             }
         }
         
-
+        libcCallGraph.dump_todot("libc-callgraph"+funcName+".dot");
+       
+        
         ///// Inject the dummy syscall
         for (BasicBlock &BB : F) {
             for (Instruction &I : BB) {
@@ -144,6 +172,13 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
         }
     
   }
+   // Dump the function to libc call map
+    for (const auto &entry : funcToLibcMap) {
+        DEBUG_PRINT(BOLD_GREEN << "-----------------Function: " << BOLD_WHITE << entry.first << RESET << "\n");
+        for (const auto &libCall : entry.second) {
+            DEBUG_PRINT(BOLD_YELLOW << "  Libc Call: " << BOLD_MAGENTA << libCall << RESET << "\n");
+        }
+    }
 
   return InsertedAtLeastOnePrintf;
 }
