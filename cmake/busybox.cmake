@@ -9,8 +9,6 @@ FetchContent_Declare(
     STAMP_DIR ${PRJ_BUILD_DIR}/busybox-build
 )
 
-
-
 function (setup_busybox_workspace_fn busybox_src_dir project_root_dir)
     list (APPEND BUSYBOX_DEPS 
                 ${busybox_src_dir}/miscutils/syscalltest-support.c
