@@ -14,8 +14,9 @@
 struct LibcSandboxing : public llvm::PassInfoMixin<LibcSandboxing> {
 private:
     llvm::FileToMapReader fileToMapReader;
-    llvm::Function *SyscallF;
-    llvm::FunctionCallee Syscall;
+
+    llvm::Function *DummySyscallF;
+    llvm::FunctionCallee DummySyscall;
 
 public:
     llvm::PreservedAnalyses run(llvm::Module &M,
@@ -152,12 +153,12 @@ void LibcSandboxing::setupDummySyscall(Module &M) {
         /*isVarArg=*/true);
 
     
-    Syscall = M.getOrInsertFunction("syscall", SyscallTy);
-    assert(Syscall && "Syscall function not found");
+    DummySyscall = M.getOrInsertFunction("syscall", SyscallTy);
+    assert(DummySyscall && "Syscall function not found");
 
     // Set attributes as per inferLibFuncAttributes in BuildLibCalls.cpp
-    SyscallF = dyn_cast<Function>(Syscall.getCallee());
-    SyscallF->setDoesNotThrow();
+    DummySyscallF = dyn_cast<Function>(DummySyscall.getCallee());
+    DummySyscallF->setDoesNotThrow();
 }
 
 void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
@@ -166,7 +167,7 @@ void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
 
     llvm::Value *syscallNumber = Builder.getInt64(2513);
     Builder.CreateCall(
-        Syscall, {syscallNumber, Builder.getInt64(syscallNum)});
+        DummySyscall, {syscallNumber, Builder.getInt64(syscallNum)});
     
 }
 
