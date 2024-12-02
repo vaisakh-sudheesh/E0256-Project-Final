@@ -18,6 +18,8 @@ struct LibcCallgraph {
 
     std::vector<std::string> get_outgoing_edges(const std::string& vertex);
     std::vector<std::string> get_neighbors(const std::string& vertex);
+
+    std::vector<std::string> get_control_edge_neighbors(const std::string& vertex);
     
     void print();
 

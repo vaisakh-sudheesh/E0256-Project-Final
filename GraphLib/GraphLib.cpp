@@ -143,3 +143,18 @@ std::vector<std::string> LibcCallgraph::get_neighbors(const std::string& vertex)
     }
     return neighbors;
 }
+
+std::vector<std::string>  LibcCallgraph::get_control_edge_neighbors(const std::string& vertex) {
+    std::vector<std::string> neighbors;
+    if (vertex_id_map.find(vertex) == vertex_id_map.end()) {
+        fmt::print("Vertex {} not found in the graph\n", vertex);
+        return neighbors;
+    }
+
+    for (const auto& neighbor : graph.get_neighbors(vertex_id_map[vertex])) {
+        if (graph.get_edge(vertex_id_map[vertex], neighbor) == "control") {
+            neighbors.push_back(graph.get_vertex(neighbor));
+        }
+    }
+    return neighbors;
+}
