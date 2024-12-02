@@ -260,9 +260,9 @@ void ConvertBBGraphToLibcCallGraph(){
         const auto &funcName = entry.first;
         auto &bbExpandedGraph = funcMeta.bbExpandedGraph;
         auto &libcCallGraph = funcMeta.libcCallGraph;
-        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
-        DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcName << RESET << "\n");
-        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
+        // DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
+        // DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcName << RESET << "\n");
+        // DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
 
         libcCallGraph = bbExpandedGraph;
 
