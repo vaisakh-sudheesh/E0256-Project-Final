@@ -110,23 +110,32 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 
         DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
+
+        ///// Name the basic blocks
         for (BasicBlock &BB : F) {
-            ///// Name the basic blocks
             nameBasicBlocks(F);
+        }
 
-            ///// Generate the graph
-            DEBUG_PRINT_BB(BB);
+        ///// Generate the call graph
+        for (BasicBlock &BB : F) {
+            std::vector<std::string> libCalls = fileToMapReader.getLibraryCalls(BB);
+            for (std::string &libCall : libCalls) {
+                DEBUG_PRINT(BOLD_YELLOW << "Found libc call: " << BOLD_MAGENTA << libCall << RESET << "\n");
+            }
+        }
+        
 
-            ///// Inject syscall for libc calls
+        ///// Inject the dummy syscall
+        for (BasicBlock &BB : F) {
             for (Instruction &I : BB) {
                 if (CallInst *CI = dyn_cast<CallInst>(&I)) {
                     Function *Callee = CI->getCalledFunction();
                     if (Callee) {
                         std::string funcName = Callee->getName().str();
-                        if (funcName.find("syscall") == 0) continue;
                         if (fileToMapReader.isStringInMap(funcName)) {
-                            DEBUG_PRINT(YELLOW << "Found libc call: " << WHITE << funcName << "\n" << RESET);
-                            injectDummySyscall(I, fileToMapReader.getValueFromMap(funcName));
+                            int syscallNum = fileToMapReader.getValueFromMap(funcName);
+                            // DEBUG_PRINT(BOLD_YELLOW << "Found libc call: " << BOLD_MAGENTA << funcName << RESET << " - syscall number: " << syscallNum << "\n");
+                            injectDummySyscall(I, syscallNum);
                             InsertedAtLeastOnePrintf = true;
                         }
                     }
