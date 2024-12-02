@@ -7,7 +7,7 @@
 
 graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex) {
     if (vertex_id_map.find(vertex) != vertex_id_map.end()) {
-        fmt::print("Vertex already exists in the graph\n");
+        fmt::print("Vertex {} already exists in the graph \n", vertex);
         return vertex_id_map[vertex];
     }
 

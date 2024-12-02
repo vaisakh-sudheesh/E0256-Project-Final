@@ -251,13 +251,32 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
         }
     
   }
-   // Dump the function to libc call map
-    for (const auto &entry : funcToLibcMap) {
-        DEBUG_PRINT(BOLD_GREEN << "-----------------Function: " << BOLD_WHITE << entry.first << RESET << "\n");
-        for (const auto &libCall : entry.second) {
-            DEBUG_PRINT(BOLD_YELLOW << "  Libc Call: " << BOLD_MAGENTA << libCall << RESET << "\n");
-        }
-    }
+////////////////////////////////////////////////////////////
+//    // Dump the function to libc call map
+//     for (const auto &entry : funcToLibcMap) {
+//         DEBUG_PRINT(BOLD_GREEN << "-----------------Function: " << BOLD_WHITE << entry.first << RESET << "\n");
+//         for (const auto &libCall : entry.second) {
+//             DEBUG_PRINT(BOLD_YELLOW << "  Libc Call: " << BOLD_MAGENTA << libCall << RESET << "\n");
+//         }
+//     }
+////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////
+// Dump the function to meta map
+// for (const auto &entry : funcToMetaMap) {
+//     const auto &funcMeta = entry.second;
+//     DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcMeta.funcName << RESET << "\n");
+//     DEBUG_PRINT(BOLD_GREEN << "  Entry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
+//     DEBUG_PRINT(BOLD_GREEN << "  Exit Node: " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+//     DEBUG_PRINT(BOLD_GREEN << "  Basic Blocks to Func Calls Map:" << RESET << "\n");
+//     for (const auto &bbEntry : funcMeta.bbToLibcMap) {
+//         DEBUG_PRINT(BOLD_YELLOW << "    Basic Block: " << BOLD_WHITE << bbEntry.first << RESET << "\n");
+//         for (const auto &libCall : bbEntry.second) {
+//             DEBUG_PRINT(BOLD_MAGENTA << "      Func Call: " << BOLD_WHITE << libCall << RESET << "\n");
+//         }
+//     }
+// }
+////////////////////////////////////////////////////////////
 
   return InsertedAtLeastOnePrintf;
 }
