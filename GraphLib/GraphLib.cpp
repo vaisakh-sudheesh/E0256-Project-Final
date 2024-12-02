@@ -106,9 +106,13 @@ void LibcCallgraph::dump_todot(const std::string& filename) {
 
   const auto edge_writer{[](const graaf::edge_id_t& /*edge_id*/,
                             const auto& edge) -> std::string {
-    return fmt::format("label=\"{}\", style=solid, color=gray, fontcolor=gray",
+        if (edge == "control") {
+            return fmt::format("label=\"\", style=dashed, color=gray, fontcolor=gray");
+        } else {
+        return fmt::format("label=\"{}\", style=solid, color=red, fontcolor=red",
                        edge);
-  }};
+        }
+    }};
         
     graaf::io::to_dot(graph, path, vertex_writer, edge_writer);
 }
