@@ -159,15 +159,92 @@ void LibcSandboxing::nameBasicBlocks(llvm::Function &F){
 // InjectFuncCall implementation
 //-----------------------------------------------------------------------------
 
-struct funcGraphMeta {
+struct funcBBGraphMeta {
     std::string funcName;
+
+    // Entry and exit node names
     std::string entryNode;
     std::string exitNode;
-    std::map <std::string, std::vector<std::string>> bbToLibcMap;
-    LibcCallgraph bbGraph;
-};
 
-std::map<std::string, funcGraphMeta> funcToMetaMap;
+    // Map to store the libc calls for each basic block
+    std::map <std::string, std::vector<std::string>> bbToLibcMap;
+
+    LibcCallgraph bbGraph;          // Just basic block control flow graph
+    LibcCallgraph bbExpandedGraph;  // Graph with libc calls expanded
+};
+std::map<std::string, funcBBGraphMeta> funcBBToMetaMap;
+
+/**
+ * @brief Expand the basic block graph to include function calls
+ */
+void ExpandBBGraph(){
+    for (auto &entry : funcBBToMetaMap) {
+        auto &funcMeta = entry.second;
+        const auto &funcName = entry.first;
+        const auto &bbGraph = funcMeta.bbGraph;
+        auto &bbExpandedGraph = funcMeta.bbExpandedGraph;
+        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
+        DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcName << RESET << "\n");
+        DEBUG_PRINT(BOLD_RED << "===================================================== " RESET << "\n");
+        bbExpandedGraph = bbGraph;
+
+        // Expand the edges
+        int counter=1;
+        std::string tempBBName, prevVertex, finalVertex;
+        for (const auto &bbEntry : funcMeta.bbToLibcMap) {
+            const auto &bbName = bbEntry.first;
+            if (counter > 1) {
+                bbExpandedGraph.remove_edge(tempBBName, bbEntry.first);
+                // DEBUG_PRINT(BOLD_YELLOW << "Removing edge: " << BOLD_WHITE << tempBBName << BOLD_YELLOW << " -> " << BOLD_WHITE << bbEntry.first << RESET << "\n");
+                bbExpandedGraph.add_edge(prevVertex, bbEntry.first, "control");
+                // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << bbEntry.first << RESET << "\n");
+            }
+            counter = 1;
+            
+            prevVertex =  tempBBName  = bbName;
+
+            const auto &libCalls = bbEntry.second;
+            for (const auto &libCall : libCalls) {
+                std::string vertexName = bbName + ((libCall.find("user:") == 0) ? "-user_" : "-libc_") + std::to_string(counter++);
+                bbExpandedGraph.add_vertex(vertexName);
+                bbExpandedGraph.add_edge(prevVertex, vertexName, libCall);
+                // DEBUG_PRINT(BOLD_YELLOW << "##Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << vertexName << BOLD_YELLOW << " (" << BOLD_WHITE << libCall << BOLD_YELLOW << ")" << RESET << "\n");
+                prevVertex = vertexName;
+            }
+        }
+        if (counter > 1) {
+            // DEBUG_PRINT(BOLD_YELLOW << "Removing edge: " << BOLD_WHITE << tempBBName << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+            bbExpandedGraph.remove_edge(tempBBName, funcMeta.exitNode);
+            // DEBUG_PRINT(BOLD_YELLOW << "Adding edge: " << BOLD_WHITE << prevVertex << BOLD_YELLOW << " -> " << BOLD_WHITE << funcMeta.exitNode << RESET << "\n");
+            bbExpandedGraph.add_edge(prevVertex, funcMeta.exitNode, "control");
+        }
+
+
+        std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + "-expanded.dot";
+        DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
+        funcMeta.bbExpandedGraph.dump_todot(outputFilename);
+    }
+}
+
+
+struct funcLibcCallGraphMeta {
+    std::string funcName;
+    
+    std::string entryNode;          // Entry and exit node names
+    std::string exitNode;
+
+    LibcCallgraph libcCallGraph;    // Graph with libc calls and program abstract state 
+};
+std::map<std::string, funcLibcCallGraphMeta> funcLibCGToMetaMap;
+
+
+
+/**
+ * @brief Convert the basic block graph to a libc call graph
+ */
+void ConvertBBGraphToLibcCallGraph(){
+
+}
 
 bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, FunctionAnalysisManager &FAM) {
     bool InsertedAtLeastOnePrintf = false;
@@ -177,14 +254,14 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
     std::map<std::string, std::vector<std::string>> funcToLibcMap;
 
     for (auto &F : M) {
-        struct funcGraphMeta funcMeta;
+        struct funcBBGraphMeta funcMeta;
         
         if (F.isDeclaration()) continue;            // Skip external functions
         std::string funcName = F.getName().str();
         if (funcName.find("llvm.") == 0) continue; // Skip internal LLVM functions
         if (funcName.find("syscall") == 0) continue; // Skip the syscall wrapper function used for injection
 
-        // DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
+        DEBUG_PRINT(GREEN<<"\n===== Function: " << WHITE << funcName << GREEN << " =====\n"<<RESET);
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
         funcMeta.funcName = funcName;
         ///// Name the basic blocks
@@ -192,23 +269,24 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 
         ///// Generate the call graph - vertices/basicblocks
         for (BasicBlock &BB : F) {
-            // DEBUG_PRINT_BB(BB);
+            DEBUG_PRINT_BB(BB);
             auto *TI = BB.getTerminator();
             if (BB.hasNPredecessors(0)) {
                 funcMeta.entryNode = BB.getName().str();
-                funcMeta.bbGraph.add_vertex(BB.getName().str());                
+                funcMeta.bbGraph.add_vertex(BB.getName().str(), (fileToMapReader.getLibraryCalls(BB).empty()) ? false : true);
                 // DEBUG_PRINT("ENTRY\n");
             } 
                 
             if (isa<ReturnInst>(TI)) {
                 funcMeta.exitNode = BB.getName().str();
-                funcMeta.bbGraph.add_vertex(BB.getName().str());
+                funcMeta.bbGraph.add_vertex(BB.getName().str(),(fileToMapReader.getLibraryCalls(BB).empty()) ? false : true);
                 // DEBUG_PRINT("EXIT\n");
                 continue;
             }
 
-            funcMeta.bbGraph.add_vertex(BB.getName().str());
-            // DEBUG_PRINT("INTERNAL\n");
+            funcMeta.bbGraph.add_vertex(BB.getName().str(),
+                                    (fileToMapReader.getLibraryCalls(BB).empty()) ? false : true);
+            DEBUG_PRINT("INTERNAL\n");
         }
 
         ///// Generate the call graph - populate edges
@@ -225,7 +303,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
                 funcMeta.bbToLibcMap[BB.getName().str()] = libCalls;
             }
         }
-        funcToMetaMap[funcName] = funcMeta;
+        funcBBToMetaMap[funcName] = funcMeta;
         
         std::string outputFilename = OuputFilepathPrefix +'/'+ OuputFilenamePrefix + funcName + ".dot";
         // DEBUG_PRINT(BOLD_GREEN << "Output filename: " << BOLD_WHITE << outputFilename << RESET << "\n");
@@ -262,8 +340,8 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 ////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////
-// Dump the function to meta map
-// for (const auto &entry : funcToMetaMap) {
+//// Dump the function to meta map
+// for (const auto &entry : funcBBToMetaMap) {
 //     const auto &funcMeta = entry.second;
 //     DEBUG_PRINT(BOLD_GREEN << "Function: " << BOLD_WHITE << funcMeta.funcName << RESET << "\n");
 //     DEBUG_PRINT(BOLD_GREEN << "  Entry Node: " << BOLD_WHITE << funcMeta.entryNode << RESET << "\n");
@@ -277,8 +355,9 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 //     }
 // }
 ////////////////////////////////////////////////////////////
-
-  return InsertedAtLeastOnePrintf;
+    ExpandBBGraph();
+    ConvertBBGraphToLibcCallGraph();
+    return InsertedAtLeastOnePrintf;
 }
 
 PreservedAnalyses LibcSandboxing::run(llvm::Module &M,

@@ -5,7 +5,7 @@
 #include <graaflib/io/dot.h>
 
 
-graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex) {
+graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex, bool has_func_call) {
     if (vertex_id_map.find(vertex) != vertex_id_map.end()) {
         fmt::print("Vertex {} already exists in the graph \n", vertex);
         return vertex_id_map[vertex];
@@ -13,6 +13,7 @@ graaf::vertex_id_t LibcCallgraph::add_vertex(const std::string& vertex) {
 
     graaf::vertex_id_t vertex_id = graph.add_vertex(vertex);
     vertex_id_map[vertex] = vertex_id;
+    func_call_map[vertex] = has_func_call;
     return vertex_id;
 }
 
@@ -51,6 +52,7 @@ void LibcCallgraph::remove_vertex(const std::string& vertex) {
 
     graph.remove_vertex(vertex_id_map[vertex]);
     vertex_id_map.erase(vertex);
+    func_call_map.erase(vertex);
 }
 
 void LibcCallgraph::combine_vertex(const std::string& vertex_lhs, const std::string& vertex_rhs) {
@@ -75,6 +77,7 @@ void LibcCallgraph::combine_vertex(const std::string& vertex_lhs, const std::str
     }
     graph.remove_vertex(vertex_id_map[vertex_rhs]);
     vertex_id_map.erase(vertex_rhs);
+    func_call_map.erase(vertex_rhs);
 }
 
 void LibcCallgraph::print(){
@@ -89,14 +92,16 @@ void LibcCallgraph::print(){
 
 void LibcCallgraph::dump_todot(const std::string& filename) {
     const std::filesystem::path path = filename;
-  const auto vertex_writer{[](graaf::vertex_id_t vertex_id,
-                              const std::string& vertex) -> std::string {
+  const auto vertex_writer{[this](graaf::vertex_id_t vertex_id,
+                                  const std::string& vertex) -> std::string {
 
-    return fmt::format("label=\""
-                        //"{}:"
-                        " {}\", fillcolor=lightcyan, style=filled",
-                       //vertex_id, 
+    if (func_call_map[vertex]) {
+        return fmt::format("label=\"{}\",fillcolor=lightcoral, style=filled",
                        vertex);
+    } else {
+        return fmt::format("label=\"{}\",fillcolor=lightcyan, style=filled",
+                       vertex);
+    }
   }};
 
   const auto edge_writer{[](const graaf::edge_id_t& /*edge_id*/,
