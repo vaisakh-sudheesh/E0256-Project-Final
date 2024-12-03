@@ -31,6 +31,7 @@ foreach(GRAPHGEN_FILE ${GRAPHGEN_FILES})
                                   -passes="libc-sandboxing" 
                                   -cg-output-path ${PROJECT_TEST_OUTPUT}/dot
                                   -cg-output-name ${FILE_NAME}                                   
+                                  -cg-lib-funcs-path ${PROJECT_TESTS}/libc_listing.lst
                                   ${PROJECT_TEST_OUTPUT}/ir/${FILE_NAME} 
                                   -o ${PROJECT_TEST_OUTPUT}/opt-out/${EXEC_OUT_FILENAME}
 

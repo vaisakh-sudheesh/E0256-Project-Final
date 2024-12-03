@@ -652,7 +652,7 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
 PreservedAnalyses LibcSandboxing::run(llvm::Module &M,
                                        llvm::ModuleAnalysisManager &AM) {
     FunctionAnalysisManager &FAM = AM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
-    fileToMapReader.readFileToMap("/home/vaisakhps/developer/E0256-Security/E0-256_ProjectFinal/test/libc_listing.lst");
+    fileToMapReader.readFileToMap(InputLibFuncsPath);
     bool Changed =  runOnModule(M, AM, FAM);
 
     return (Changed ? llvm::PreservedAnalyses::none()
