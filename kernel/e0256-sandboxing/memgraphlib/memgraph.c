@@ -92,6 +92,8 @@ void initialize_graph(void *data, unsigned long size) {
 
         if (verify_graph() != 1) {
             PRINT_ERROR_AND_EXIT("Failed to initialize graph, verification failed.");
+        } else {
+            PRINT_INFO("Graph initialized from buffer and verified.\n");
         }
     } else {
         nodes = NULL;

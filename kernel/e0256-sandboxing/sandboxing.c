@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/syscalls.h>
 #include <linux/sched.h>
+#include "memgraphlib/export/memgraph.h"
 
 unsigned char *kernel_buffer = NULL;
 
@@ -39,9 +40,14 @@ SYSCALL_DEFINE2(sandbox_init, unsigned char*, data, unsigned long, size)
     printk(KERN_INFO "Successfully copied data from user space\n");
 
     //printk(KERN_INFO "Data: %s\n", kernel_buffer);
-    // for (int i = 0; i < size; i++) {
-    //     printk(KERN_INFO "Data[%d]: %d\n", i, kernel_buffer[i]);
-    // }
+    for (int i = 0; i < 20; i++) {
+        printk(KERN_INFO "Data[%d]: %d\n", i, kernel_buffer[i]);
+    }
+
+    printk(KERN_INFO "Initializing in-memory graph\n");
+    initialize_graph(kernel_buffer, size);
+    reset_progstate();
+
 #endif // CONFIG_E0_256_SANDBOX_PROJECT    
     return retval;
 }
@@ -72,8 +78,11 @@ SYSCALL_DEFINE1(sandbox_dummycall, unsigned long, number)
     printk(KERN_INFO "Sandbox Dummy Syscall: %ld\n", number);
     retval = number;
 
-    if (number % 10 == 0) {
-        printk(KERN_WARNING "Sandbox Dummy Syscall: issuing kill of caller\n");
+    if (is_state_transition_valid (number)) {
+        printk(KERN_INFO "Sandbox Dummy Syscall: valid transition\n");
+        retval = transition_to_state(number);
+    } else {
+        printk(KERN_INFO "Sandbox Dummy Syscall: invalid transition\n");
         do_exit(SIGKILL);
     }
 #endif // CONFIG_E0_256_SANDBOX_PROJECT

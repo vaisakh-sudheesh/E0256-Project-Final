@@ -28,8 +28,11 @@ public:
     void setupDummySyscall(llvm::Module &M);
     void injectDummySyscall(llvm::Instruction &I, int syscallNum);
 
+    void GenerateInMemoryGraph(llvm::Module &M);
+
     void nameBasicBlocks(llvm::Function &F);
-    void SectionAddressHandler(llvm::Module &M);
+    void SectionAddressHandler(llvm::Module &M, unsigned char *data, unsigned long size);
+    void MemoryCleanupHandler(llvm::Module &M);
 };
 
 #include "llvm/IR/IRBuilder.h"
@@ -120,7 +123,7 @@ static cl::opt<bool> PrintLibcCallGraph(
 // Adding a new section to the binary - to store the sandbox init data
 //-----------------------------------------------------------------------------
 
-void LibcSandboxing::SectionAddressHandler(Module &M) {
+void LibcSandboxing::SectionAddressHandler(Module &M, unsigned char *data, unsigned long size) {
  LLVMContext &CTX = M.getContext();
         IRBuilder<> Builder(CTX);
 
@@ -128,7 +131,7 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
         const char *sectionName = "sandbox_init_data_section";
 
         // Create a new global variable in the specified section
-        ArrayType *arrayType = ArrayType::get(Type::getInt8Ty(CTX), 16);
+        ArrayType *arrayType = ArrayType::get(Type::getInt8Ty(CTX), size);
         GlobalVariable *newGlobal = new GlobalVariable(
             M, arrayType, false, GlobalValue::ExternalLinkage,
             Constant::getNullValue(arrayType), "SanboxInitData");
@@ -137,8 +140,8 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
 
         // Optionally, initialize the global variable with some data
         std::vector<Constant *> initValues;
-        for (int i = 0; i < 16; ++i) {
-            initValues.push_back(ConstantInt::get(Type::getInt8Ty(CTX), i));
+        for (int i = 0; i < size; ++i) {
+            initValues.push_back(ConstantInt::get(Type::getInt8Ty(CTX), data[i]));
         }
         Constant *initArray = ConstantArray::get(arrayType, initValues);
         newGlobal->setInitializer(initArray);
@@ -155,11 +158,40 @@ void LibcSandboxing::SectionAddressHandler(Module &M) {
                 llvm::Value *syscallNumber = Builder.getInt64(337);
                 auto bufferPtr = Builder.CreatePointerCast(newGlobal, PrintfArgTy, "bufferPtr");
                 Builder.CreateCall(
-                    DummySyscall, {syscallNumber, bufferPtr, Builder.getInt64(16)});
+                    DummySyscall, {syscallNumber, bufferPtr, Builder.getInt64(size)});
             }
         }
 
 }
+
+void LibcSandboxing::MemoryCleanupHandler(Module &M) {
+ LLVMContext &CTX = M.getContext();
+        IRBuilder<> Builder(CTX);
+
+        for (auto &F : M) {
+            if (F.isDeclaration())
+                continue;
+            std::string funcName = F.getName().str();
+            if (funcName.find("main") == 0){
+
+                Instruction *lastInst = nullptr;
+                for (auto &BB : F) {
+                    for (auto &I : BB) {
+                        if (isa<ReturnInst>(I)) {
+                            break;
+                        }
+                        lastInst = &I;
+                    }
+                }
+                IRBuilder<> Builder(lastInst);
+
+                llvm::Value *syscallNumber = Builder.getInt64(338);
+                Builder.CreateCall( DummySyscall, {syscallNumber});
+            }
+        }
+
+}
+
 
 //------------------------------------------------------------------------------
 // Dummy syscall setup & injection
@@ -192,6 +224,8 @@ void LibcSandboxing::injectDummySyscall(Instruction &I, int syscallNum){
         DummySyscall, {syscallNumber, Builder.getInt64(syscallNum)});
     
 }
+
+
 
 //------------------------------------------------------------------------------
 // Utility functions for Basic block operations
@@ -456,6 +490,44 @@ void CombineLibcgGraph (){
     DEBUG_PRINT(BOLD_GREEN << "\tExit Node: " << BOLD_WHITE << finalGraphExitNode << RESET << "\n");
 }
 
+
+//------------------------------------------------------------------------------
+// Generate the in-memory graph to be embedded in to the program
+//------------------------------------------------------------------------------
+#include "memgraph.h"
+void LibcSandboxing::GenerateInMemoryGraph(llvm::Module &M){
+    int numOutEdges = 0;
+    const int MAX_NEIGHBORS = 1000;
+    const int MODULUS = 1000;
+    unsigned long neighborList [MAX_NEIGHBORS] , edgeList[MAX_NEIGHBORS];
+    initialize_graph(NULL, 0);
+
+    for (const auto &vertex : finalGraph.get_vertices()) {
+        // Calculate the hash of the vertex - to have unique ID for the node
+        std::size_t strId = std::hash<std::string>{}(vertex)  % MODULUS;
+
+        for (const auto &vertex : finalGraph.get_vertices()) {
+            for (const auto &edge : finalGraph.get_outgoing_edges(vertex)) {
+                std::string edgeStr = (edge.find("libc:") == 0) ? edge.substr(5) : edge;
+                int libcId = fileToMapReader.getValueFromMap(edgeStr);
+                edgeList[numOutEdges] = libcId;
+            }
+
+            for (const auto &edge : finalGraph.get_neighbors(vertex)) {
+                neighborList[numOutEdges] = std::hash<std::string>{}(edge) % MODULUS;
+            }
+            numOutEdges++;
+            assert (numOutEdges < MAX_NEIGHBORS);
+        }
+        alloc_node(strId, numOutEdges, edgeList, neighborList);
+    }
+    
+    finalize_graph();
+    void * graph = get_graph();
+    SectionAddressHandler(M, (unsigned char*)graph, (1024 * 1024));
+    destroy_graph();    
+}
+
 //------------------------------------------------------------------------------
 // New PM interface
 //------------------------------------------------------------------------------
@@ -572,7 +644,8 @@ bool LibcSandboxing::runOnModule(Module &M, ModuleAnalysisManager &MAM, Function
     ExpandBBGraph();
     ConvertBBGraphToLibcCallGraph();
     CombineLibcgGraph ();
-    SectionAddressHandler(M);
+    GenerateInMemoryGraph(M);
+    MemoryCleanupHandler(M);
     return InsertedAtLeastOnePrintf;
 }
 
